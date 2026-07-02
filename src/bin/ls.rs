@@ -13,12 +13,24 @@ fn list_dir(path: &Path, multi: bool) -> io::Result<()> {
 }
 
 fn list_path(path: &Path, multi: bool) -> io::Result<()> {
-    let metadata = fs::metadata(path)?;
-    if metadata.is_dir() {
-        list_dir(path, multi)
-    } else {
-        println!("{}", path.display());
-        Ok(())
+    match fs::read_dir(path) {
+        Ok(entries) => {
+            if multi {
+                println!("{}:", path.display());
+            }
+            let mut entries = entries.collect::<Result<Vec<_>, _>>()?;
+            entries.sort_by_key(|entry| entry.file_name());
+            for entry in entries {
+                println!("{}", entry.file_name().to_string_lossy());
+            }
+            Ok(())
+        }
+        Err(error) if error.kind() == io::ErrorKind::NotADirectory => {
+            fs::metadata(path)?;
+            println!("{}", path.display());
+            Ok(())
+        }
+        Err(error) => Err(error),
     }
 }
 

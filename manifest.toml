@@ -10,6 +10,11 @@ capability_profile = "coreutils.echo"
 kind = "application"
 
 [[binary]]
+path = "/bin/ls"
+capability_profile = "coreutils.ls"
+kind = "application"
+
+[[binary]]
 path = "/bin/pwd"
 capability_profile = "coreutils.pwd"
 kind = "application"
@@ -38,3 +43,13 @@ kind = "application"
 path = "/bin/rm"
 capability_profile = "coreutils.rm"
 kind = "application"
+
+[[binary]]
+path = "/bin/mpk"
+capability_profile = "coreutils.mpk"
+kind = "application"
+requires = [
+    "fs.read.all",
+    "fs.write.all",
+    "process.spawn",
+]
