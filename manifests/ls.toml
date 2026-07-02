@@ -1,5 +1,5 @@
 api_version = 1
-id = "com.mochios.coreutils.ls"
+id = "org.mochios.coreutils.ls"
 name = "ls"
 version = "0.1.0"
 entry = "/bin/ls"

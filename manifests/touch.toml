@@ -1,5 +1,5 @@
 api_version = 1
-id = "com.mochios.coreutils.touch"
+id = "org.mochios.coreutils.touch"
 name = "touch"
 version = "0.1.0"
 entry = "/bin/touch"

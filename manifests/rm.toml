@@ -1,5 +1,5 @@
 api_version = 1
-id = "com.mochios.coreutils.rm"
+id = "org.mochios.coreutils.rm"
 name = "rm"
 version = "0.1.0"
 entry = "/bin/rm"

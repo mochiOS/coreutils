@@ -1,5 +1,5 @@
 api_version = 1
-id = "com.mochios.coreutils.false"
+id = "org.mochios.coreutils.false"
 name = "false"
 version = "0.1.0"
 entry = "/bin/false"

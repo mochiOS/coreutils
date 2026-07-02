@@ -1,5 +1,5 @@
 api_version = 1
-id = "com.mochios.coreutils.cat"
+id = "org.mochios.coreutils.cat"
 name = "cat"
 version = "0.1.0"
 entry = "/bin/cat"

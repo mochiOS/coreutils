@@ -1,5 +1,5 @@
 api_version = 1
-id = "com.mochios.coreutils.mkdir"
+id = "org.mochios.coreutils.mkdir"
 name = "mkdir"
 version = "0.1.0"
 entry = "/bin/mkdir"
