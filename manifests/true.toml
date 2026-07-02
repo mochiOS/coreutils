@@ -1,9 +1,0 @@
-api_version = 1
-id = "org.mochios.coreutils.true"
-name = "true"
-version = "0.1.0"
-entry = "/bin/true"
-role = "application"
-
-[capabilities]
-requires = []

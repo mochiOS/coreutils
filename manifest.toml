@@ -1,0 +1,40 @@
+[package]
+id = "org.mochios.coreutils"
+name = "coreutils"
+version = "0.1.0"
+vendor = "mochiOS Project"
+
+[[binary]]
+path = "/bin/echo"
+capability_profile = "coreutils.echo"
+kind = "application"
+
+[[binary]]
+path = "/bin/pwd"
+capability_profile = "coreutils.pwd"
+kind = "application"
+
+[[binary]]
+path = "/bin/true"
+capability_profile = "coreutils.true"
+kind = "application"
+
+[[binary]]
+path = "/bin/false"
+capability_profile = "coreutils.false"
+kind = "application"
+
+[[binary]]
+path = "/bin/cat"
+capability_profile = "coreutils.cat"
+kind = "application"
+
+[[binary]]
+path = "/bin/touch"
+capability_profile = "coreutils.touch"
+kind = "application"
+
+[[binary]]
+path = "/bin/rm"
+capability_profile = "coreutils.rm"
+kind = "application"
