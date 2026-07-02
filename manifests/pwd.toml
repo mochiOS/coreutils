@@ -1,0 +1,9 @@
+api_version = 1
+id = "com.mochios.coreutils.pwd"
+name = "pwd"
+version = "0.1.0"
+entry = "/bin/pwd"
+role = "application"
+
+[capabilities]
+requires = []

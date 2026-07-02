@@ -1,0 +1,11 @@
+api_version = 1
+id = "com.mochios.coreutils.cat"
+name = "cat"
+version = "0.1.0"
+entry = "/bin/cat"
+role = "application"
+
+[capabilities]
+requires = [
+    "fs.read.all",
+]

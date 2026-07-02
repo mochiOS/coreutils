@@ -1,0 +1,9 @@
+api_version = 1
+id = "com.mochios.coreutils.echo"
+name = "echo"
+version = "0.1.0"
+entry = "/bin/echo"
+role = "application"
+
+[capabilities]
+requires = []
