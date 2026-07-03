@@ -16,7 +16,7 @@ fn find_package_service() -> io::Result<u64> {
         name.as_ptr() as u64,
         name.len() as u64,
     )
-        .map_err(|err| errno_io(err.errno().unwrap_or(libc::EIO as u64)))?;
+    .map_err(|err| errno_io(err.errno().unwrap_or(libc::EIO as u64)))?;
     if tid == 0 {
         return Err(errno_io(libc::ENOENT as u64));
     }
@@ -40,7 +40,7 @@ fn install_via_package_service(mpkg_path: &str) -> io::Result<()> {
         reply.as_mut_ptr() as u64,
         reply.len() as u64,
     )
-        .map_err(|err| errno_io(err.errno().unwrap_or(libc::EIO as u64)))?;
+    .map_err(|err| errno_io(err.errno().unwrap_or(libc::EIO as u64)))?;
     let len = (msg & 0xffff_ffff) as usize;
     if len < 8 {
         return Err(errno_io(libc::EIO as u64));
