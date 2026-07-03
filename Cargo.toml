@@ -11,8 +11,6 @@ libc = { path = "../../libraries/libc" }
 [dependencies]
 libc = "0.2.185"
 mochi-user-syscall = { path = "../../user/crates/syscall" }
-ed25519-dalek = { version = "2.2.0", default-features = false }
-sha2 = { version = "0.10.9", default-features = false }
 
 [lib]
 path = "src/lib.rs"

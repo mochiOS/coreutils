@@ -49,7 +49,5 @@ path = "/bin/mpk"
 capability_profile = "coreutils.mpk"
 kind = "application"
 requires = [
-    "fs.read.all",
-    "fs.write.all",
-    "process.spawn",
+    "ipc.client",
 ]
