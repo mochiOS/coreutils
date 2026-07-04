@@ -2,24 +2,12 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-fn list_dir(path: &Path, multi: bool) -> io::Result<()> {
-    if multi {
-        println!("{}:", path.display());
-    }
-    for entry in coreutils::sorted_dir_entries(path)? {
-        println!("{}", entry.file_name().to_string_lossy());
-    }
-    Ok(())
-}
-
 fn list_path(path: &Path, multi: bool) -> io::Result<()> {
-    match fs::read_dir(path) {
+    match coreutils::sorted_dir_entries(path) {
         Ok(entries) => {
             if multi {
                 println!("{}:", path.display());
             }
-            let mut entries = entries.collect::<Result<Vec<_>, _>>()?;
-            entries.sort_by_key(|entry| entry.file_name());
             for entry in entries {
                 println!("{}", entry.file_name().to_string_lossy());
             }
