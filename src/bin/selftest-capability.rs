@@ -7,6 +7,17 @@ enum CapabilityClass {
     SystemOnly = 3,
 }
 
+#[repr(u32)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum CapabilityDecision {
+    AllowOnce = 1,
+    AllowForProcess = 2,
+    AllowPersistently = 3,
+    AllowAllUserGrantable = 4,
+    #[default]
+    Deny = 5,
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 struct ExecutableIdentity {
@@ -84,6 +95,7 @@ impl Default for CapabilityRequest {
 }
 
 const CAPABILITY_PROMPT_OPCODE: u32 = 0x4350_5251;
+const CAPABILITY_PERSISTENT_QUERY_OPCODE: u32 = 0x4350_5150;
 
 fn request_new(
     process_id: u64,
@@ -157,6 +169,50 @@ fn capability_from_string(name: &str) -> CapabilityClass {
     }
 }
 
+fn is_manifestless_dynamic_candidate(executable_path: &str, package_binaries: &[&str]) -> bool {
+    !package_binaries.iter().any(|path| *path == executable_path)
+}
+
+fn dynamic_decision_allowed(
+    request: &CapabilityRequest,
+    decision: CapabilityDecision,
+    package_binaries: &[&str],
+) -> bool {
+    if request.opcode != CAPABILITY_PROMPT_OPCODE
+        || request.process_id == 0
+        || request.interactive == 0
+        || decision == CapabilityDecision::Deny
+        || request.capability_class != CapabilityClass::UserGrantable
+    {
+        return false;
+    }
+    let Some(executable) = field_str(&request.executable.path, request.executable.path_len) else {
+        return false;
+    };
+    is_manifestless_dynamic_candidate(executable, package_binaries)
+}
+
+fn persistent_key(
+    executable_path: &str,
+    digest: &[u8; 32],
+    capability: &str,
+    resource: Option<&str>,
+) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::new();
+    out.push_str(executable_path);
+    out.push('\t');
+    for byte in digest {
+        out.push(HEX[(byte >> 4) as usize] as char);
+        out.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    out.push('\t');
+    out.push_str(capability);
+    out.push('\t');
+    out.push_str(resource.unwrap_or(""));
+    out
+}
+
 fn field_str(buf: &[u8], len: u16) -> Option<&str> {
     core::str::from_utf8(&buf[..len as usize]).ok()
 }
@@ -167,6 +223,18 @@ fn check(name: &str, condition: bool, failures: &mut usize) {
     } else {
         println!("not ok selftest-capability::{name}");
         *failures += 1;
+    }
+}
+
+fn check_request(
+    name: &str,
+    request: Option<CapabilityRequest>,
+    predicate: impl FnOnce(&CapabilityRequest) -> bool,
+    failures: &mut usize,
+) {
+    match request {
+        Some(request) => check(name, predicate(&request), failures),
+        None => check(name, false, failures),
     }
 }
 
@@ -267,6 +335,141 @@ fn main() {
     check(
         "class_system_only",
         capability_from_string("capabilities.manage") == CapabilityClass::SystemOnly,
+        &mut failures,
+    );
+
+    let package_binaries = ["/bin/ls", "/bin/msh"];
+    check(
+        "manifestless_candidate",
+        is_manifestless_dynamic_candidate("/bin/selftest-capability", &package_binaries),
+        &mut failures,
+    );
+    check(
+        "manifest_registered_not_dynamic",
+        !is_manifestless_dynamic_candidate("/bin/ls", &package_binaries),
+        &mut failures,
+    );
+
+    let dynamic_request = request_new(
+        7,
+        "/bin/selftest-capability",
+        [9; 32],
+        "fs.read.user",
+        Some("/home/user/example.txt"),
+        Some("file access"),
+        true,
+        CapabilityClass::UserGrantable,
+    );
+    check_request(
+        "allow_once_manifestless",
+        dynamic_request,
+        |request| {
+            dynamic_decision_allowed(request, CapabilityDecision::AllowOnce, &package_binaries)
+        },
+        &mut failures,
+    );
+    check_request(
+        "allow_session_manifestless",
+        dynamic_request,
+        |request| {
+            dynamic_decision_allowed(
+                request,
+                CapabilityDecision::AllowForProcess,
+                &package_binaries,
+            )
+        },
+        &mut failures,
+    );
+    check_request(
+        "deny_manifest_binary",
+        request_new(
+            7,
+            "/bin/ls",
+            [9; 32],
+            "fs.read.user",
+            None,
+            None,
+            true,
+            CapabilityClass::UserGrantable,
+        ),
+        |request| {
+            !dynamic_decision_allowed(request, CapabilityDecision::AllowOnce, &package_binaries)
+        },
+        &mut failures,
+    );
+    check_request(
+        "deny_noninteractive",
+        request_new(
+            7,
+            "/bin/selftest-capability",
+            [9; 32],
+            "fs.read.user",
+            None,
+            None,
+            false,
+            CapabilityClass::UserGrantable,
+        ),
+        |request| {
+            !dynamic_decision_allowed(request, CapabilityDecision::AllowOnce, &package_binaries)
+        },
+        &mut failures,
+    );
+    check_request(
+        "deny_privileged_dynamic",
+        request_new(
+            7,
+            "/bin/selftest-capability",
+            [9; 32],
+            "package.install",
+            None,
+            None,
+            true,
+            CapabilityClass::Privileged,
+        ),
+        |request| {
+            !dynamic_decision_allowed(
+                request,
+                CapabilityDecision::AllowPersistently,
+                &package_binaries,
+            )
+        },
+        &mut failures,
+    );
+    check_request(
+        "deny_forged_zero_pid",
+        request_new(
+            0,
+            "/bin/selftest-capability",
+            [9; 32],
+            "fs.read.user",
+            None,
+            None,
+            true,
+            CapabilityClass::UserGrantable,
+        ),
+        |request| {
+            !dynamic_decision_allowed(request, CapabilityDecision::AllowOnce, &package_binaries)
+        },
+        &mut failures,
+    );
+    check(
+        "persistent_query_opcode_distinct",
+        CAPABILITY_PERSISTENT_QUERY_OPCODE != CAPABILITY_PROMPT_OPCODE,
+        &mut failures,
+    );
+    check(
+        "persistent_key_includes_digest",
+        persistent_key(
+            "/bin/selftest-capability",
+            &[1; 32],
+            "fs.read.user",
+            Some("/home/user/example.txt"),
+        ) != persistent_key(
+            "/bin/selftest-capability",
+            &[2; 32],
+            "fs.read.user",
+            Some("/home/user/example.txt"),
+        ),
         &mut failures,
     );
 
