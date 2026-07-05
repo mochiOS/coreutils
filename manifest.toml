@@ -51,3 +51,13 @@ kind = "application"
 requires = [
     "ipc.client",
 ]
+
+[[binary]]
+path = "/bin/test_gui"
+capability_profile = "coreutils.test_gui"
+kind = "application"
+requires = [
+    "ipc.client",
+    "ipc.server",
+    "window.create",
+]
