@@ -52,22 +52,22 @@ fn ipc_call(dest: u64, request: &[u8], reply: &mut [u8]) -> io::Result<usize> {
     Ok((msg & 0xffff_ffff) as usize)
 }
 
-fn alloc_shared_pages(phys_pages: &mut [u64]) -> io::Result<u64> {
+fn alloc_shared_page_count(page_count: usize) -> io::Result<u64> {
     syscall_io(syscall::call4(
         syscall::SyscallNumber::AllocSharedPages,
-        phys_pages.len() as u64,
-        phys_pages.as_mut_ptr() as u64,
-        phys_pages.len() as u64,
+        page_count as u64,
+        0,
+        0,
         0,
     ))
 }
 
-fn send_pages(dest: u64, phys_pages: &[u64], local_base: u64) -> io::Result<()> {
+fn send_pages(dest: u64, page_count: usize, local_base: u64) -> io::Result<()> {
     syscall_io(syscall::call4(
         syscall::SyscallNumber::IpcSendPages,
         dest,
-        phys_pages.as_ptr() as u64,
-        phys_pages.len() as u64,
+        0,
+        page_count as u64,
         local_base,
     ))?;
     Ok(())
@@ -125,8 +125,7 @@ fn attach_buffer(compositor: u64, token: u64, width: usize, height: usize) -> io
         .checked_add(PAGE_SIZE - 1)
         .map(|len| len / PAGE_SIZE)
         .ok_or_else(|| errno_io(libc::EINVAL as u64))?;
-    let mut phys_pages = vec![0u64; page_count];
-    let virt = alloc_shared_pages(&mut phys_pages)?;
+    let virt = alloc_shared_page_count(page_count)?;
     let pixels = unsafe { std::slice::from_raw_parts_mut(virt as *mut u32, width * height) };
     for y in 0..height {
         for x in 0..width {
@@ -155,7 +154,7 @@ fn attach_buffer(compositor: u64, token: u64, width: usize, height: usize) -> io
         return Err(errno_io(libc::EIO as u64));
     }
     status_from(&reply[..4])?;
-    send_pages(compositor, &phys_pages, virt)
+    send_pages(compositor, page_count, virt)
 }
 
 fn set_position(compositor: u64, token: u64, x: i32, y: i32) -> io::Result<()> {
