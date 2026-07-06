@@ -42,14 +42,20 @@ fn find_compositor() -> io::Result<u64> {
     Err(errno_io(libc::ENOENT as u64))
 }
 
-fn ipc_call(dest: u64, request: &[u8], reply: &mut [u8]) -> io::Result<usize> {
+fn ipc_call_raw(
+    dest: u64,
+    req_ptr: *const u8,
+    req_len: usize,
+    reply_ptr: *mut u8,
+    reply_len: usize,
+) -> io::Result<usize> {
     let msg = syscall_io(syscall::call5(
         syscall::SyscallNumber::IpcCall,
         dest,
-        request.as_ptr() as u64,
-        request.len() as u64,
-        reply.as_mut_ptr() as u64,
-        reply.len() as u64,
+        req_ptr as u64,
+        req_len as u64,
+        reply_ptr as u64,
+        reply_len as u64,
     ))?;
     Ok((msg & 0xffff_ffff) as usize)
 }
@@ -79,23 +85,35 @@ fn send_pages(dest: u64, page_count: usize, local_base: u64) -> io::Result<()> {
     Ok(())
 }
 
-fn put_u32(out: &mut [u8], offset: usize, value: u32) {
-    out[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+unsafe fn zero_raw(ptr: *mut u8, len: usize) {
+    core::ptr::write_bytes(ptr, 0, len);
 }
 
-fn put_u64(out: &mut [u8], offset: usize, value: u64) {
-    out[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
+unsafe fn put_u32_raw(ptr: *mut u8, offset: usize, value: u32) {
+    core::ptr::copy_nonoverlapping(value.to_le_bytes().as_ptr(), ptr.add(offset), 4);
 }
 
-fn static_buf<const N: usize>(buf: *mut [u8; N]) -> &'static mut [u8; N] {
-    unsafe { &mut *buf }
+unsafe fn put_u64_raw(ptr: *mut u8, offset: usize, value: u64) {
+    core::ptr::copy_nonoverlapping(value.to_le_bytes().as_ptr(), ptr.add(offset), 8);
 }
 
-fn status_from(reply: &[u8]) -> io::Result<()> {
-    if reply.len() < 4 {
+unsafe fn read_u32_raw(ptr: *const u8, offset: usize) -> u32 {
+    let mut bytes = [0u8; 4];
+    core::ptr::copy_nonoverlapping(ptr.add(offset), bytes.as_mut_ptr(), 4);
+    u32::from_le_bytes(bytes)
+}
+
+unsafe fn read_u64_raw(ptr: *const u8, offset: usize) -> u64 {
+    let mut bytes = [0u8; 8];
+    core::ptr::copy_nonoverlapping(ptr.add(offset), bytes.as_mut_ptr(), 8);
+    u64::from_le_bytes(bytes)
+}
+
+fn status_from_raw(ptr: *const u8, len: usize) -> io::Result<()> {
+    if len < 4 {
         return Err(errno_io(libc::EIO as u64));
     }
-    let status = u32::from_le_bytes([reply[0], reply[1], reply[2], reply[3]]);
+    let status = unsafe { read_u32_raw(ptr, 0) };
     if status == 0 {
         Ok(())
     } else {
@@ -109,23 +127,23 @@ fn create_surface(
     width: u32,
     height: u32,
 ) -> io::Result<u64> {
-    let request = static_buf(core::ptr::addr_of_mut!(CREATE_SURFACE_REQ));
-    request.fill(0);
-    put_u32(request, 0, OP_CREATE_SURFACE);
-    put_u32(request, 4, ROLE_TOPLEVEL);
-    put_u32(request, 8, width);
-    put_u32(request, 12, height);
-    put_u64(request, 16, event_endpoint);
-    let reply = static_buf(core::ptr::addr_of_mut!(IPC_REPLY));
-    reply.fill(0);
-    let len = ipc_call(compositor, request, reply)?;
+    let request = core::ptr::addr_of_mut!(CREATE_SURFACE_REQ).cast::<u8>();
+    let reply = core::ptr::addr_of_mut!(IPC_REPLY).cast::<u8>();
+    unsafe {
+        zero_raw(request, 24);
+        put_u32_raw(request, 0, OP_CREATE_SURFACE);
+        put_u32_raw(request, 4, ROLE_TOPLEVEL);
+        put_u32_raw(request, 8, width);
+        put_u32_raw(request, 12, height);
+        put_u64_raw(request, 16, event_endpoint);
+        zero_raw(reply, 16);
+    }
+    let len = ipc_call_raw(compositor, request, 24, reply, 16)?;
     if len < 12 {
         return Err(errno_io(libc::EIO as u64));
     }
-    status_from(&reply[..4])?;
-    Ok(u64::from_le_bytes([
-        reply[4], reply[5], reply[6], reply[7], reply[8], reply[9], reply[10], reply[11],
-    ]))
+    status_from_raw(reply, len)?;
+    Ok(unsafe { read_u64_raw(reply, 4) })
 }
 
 fn attach_buffer(compositor: u64, token: u64, width: usize, height: usize) -> io::Result<()> {
@@ -153,36 +171,40 @@ fn attach_buffer(compositor: u64, token: u64, width: usize, height: usize) -> io
             pixels[y * width + x] = pixel;
         }
     }
-    let request = static_buf(core::ptr::addr_of_mut!(ATTACH_BUFFER_REQ));
-    request.fill(0);
-    put_u32(request, 0, OP_ATTACH_BUFFER);
-    put_u64(request, 4, token);
-    put_u32(request, 12, width as u32);
-    put_u32(request, 16, height as u32);
-    put_u32(request, 20, width as u32);
-    put_u32(request, 24, PIXEL_FORMAT_XRGB8888);
-    let reply = static_buf(core::ptr::addr_of_mut!(IPC_REPLY));
-    reply.fill(0);
-    let len = ipc_call(compositor, request, reply)?;
+    let request = core::ptr::addr_of_mut!(ATTACH_BUFFER_REQ).cast::<u8>();
+    let reply = core::ptr::addr_of_mut!(IPC_REPLY).cast::<u8>();
+    unsafe {
+        zero_raw(request, 28);
+        put_u32_raw(request, 0, OP_ATTACH_BUFFER);
+        put_u64_raw(request, 4, token);
+        put_u32_raw(request, 12, width as u32);
+        put_u32_raw(request, 16, height as u32);
+        put_u32_raw(request, 20, width as u32);
+        put_u32_raw(request, 24, PIXEL_FORMAT_XRGB8888);
+        zero_raw(reply, 16);
+    }
+    let len = ipc_call_raw(compositor, request, 28, reply, 16)?;
     if len < 4 {
         return Err(errno_io(libc::EIO as u64));
     }
-    status_from(&reply[..4])?;
+    status_from_raw(reply, len)?;
     send_pages(compositor, page_count, virt)
 }
 
 fn simple_token_request(compositor: u64, opcode: u32, token: u64) -> io::Result<()> {
-    let request = static_buf(core::ptr::addr_of_mut!(TOKEN_REQ));
-    request.fill(0);
-    put_u32(request, 0, opcode);
-    put_u64(request, 4, token);
-    let reply = static_buf(core::ptr::addr_of_mut!(IPC_REPLY));
-    reply.fill(0);
-    let len = ipc_call(compositor, request, reply)?;
+    let request = core::ptr::addr_of_mut!(TOKEN_REQ).cast::<u8>();
+    let reply = core::ptr::addr_of_mut!(IPC_REPLY).cast::<u8>();
+    unsafe {
+        zero_raw(request, 12);
+        put_u32_raw(request, 0, opcode);
+        put_u64_raw(request, 4, token);
+        zero_raw(reply, 16);
+    }
+    let len = ipc_call_raw(compositor, request, 12, reply, 16)?;
     if len < 4 {
         return Err(errno_io(libc::EIO as u64));
     }
-    status_from(&reply[..4])
+    status_from_raw(reply, len)
 }
 
 fn main() -> io::Result<()> {
