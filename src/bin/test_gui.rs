@@ -185,13 +185,7 @@ fn simple_token_request(compositor: u64, opcode: u32, token: u64) -> io::Result<
 
 fn main() -> io::Result<()> {
     let compositor = find_compositor()?;
-    let event_endpoint = syscall_io(syscall::call2(syscall::SyscallNumber::IpcCreate, 0, 0))?;
-    let token = create_surface(
-        compositor,
-        event_endpoint,
-        SURFACE_W as u32,
-        SURFACE_H as u32,
-    )?;
+    let token = create_surface(compositor, 0, SURFACE_W as u32, SURFACE_H as u32)?;
     attach_buffer(compositor, token, SURFACE_W, SURFACE_H)?;
     set_position(compositor, token, SURFACE_X, SURFACE_Y)?;
     simple_token_request(compositor, OP_DAMAGE, token)?;
