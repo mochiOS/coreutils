@@ -7,13 +7,10 @@ const OP_CREATE_SURFACE: u32 = 1;
 const OP_ATTACH_BUFFER: u32 = 2;
 const OP_DAMAGE: u32 = 3;
 const OP_COMMIT: u32 = 4;
-const OP_SET_POSITION: u32 = 5;
 const ROLE_TOPLEVEL: u32 = 1;
 const PIXEL_FORMAT_XRGB8888: u32 = 1;
 const SURFACE_W: usize = 320;
 const SURFACE_H: usize = 240;
-const SURFACE_X: i32 = 32;
-const SURFACE_Y: i32 = 24;
 const PAGE_SIZE: usize = 4096;
 
 fn errno_io(errno: u64) -> io::Error {
@@ -78,10 +75,6 @@ fn send_pages(dest: u64, page_count: usize, local_base: u64) -> io::Result<()> {
 }
 
 fn put_u32(out: &mut [u8], offset: usize, value: u32) {
-    out[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
-}
-
-fn put_i32(out: &mut [u8], offset: usize, value: i32) {
     out[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
 }
 
@@ -165,20 +158,6 @@ fn attach_buffer(compositor: u64, token: u64, width: usize, height: usize) -> io
     send_pages(compositor, page_count, virt)
 }
 
-fn set_position(compositor: u64, token: u64, x: i32, y: i32) -> io::Result<()> {
-    let mut request = [0u8; 20];
-    put_u32(&mut request, 0, OP_SET_POSITION);
-    put_u64(&mut request, 4, token);
-    put_i32(&mut request, 12, x);
-    put_i32(&mut request, 16, y);
-    let mut reply = [0u8; 16];
-    let len = ipc_call(compositor, &request, &mut reply)?;
-    if len < 4 {
-        return Err(errno_io(libc::EIO as u64));
-    }
-    status_from(&reply[..4])
-}
-
 fn simple_token_request(compositor: u64, opcode: u32, token: u64) -> io::Result<()> {
     let mut request = [0u8; 12];
     put_u32(&mut request, 0, opcode);
@@ -195,7 +174,6 @@ fn main() -> io::Result<()> {
     let compositor = find_compositor()?;
     let token = create_surface(compositor, 0, SURFACE_W as u32, SURFACE_H as u32)?;
     attach_buffer(compositor, token, SURFACE_W, SURFACE_H)?;
-    set_position(compositor, token, SURFACE_X, SURFACE_Y)?;
     simple_token_request(compositor, OP_DAMAGE, token)?;
     simple_token_request(compositor, OP_COMMIT, token)?;
     println!("test_gui: committed surface token=0x{token:016x}");
