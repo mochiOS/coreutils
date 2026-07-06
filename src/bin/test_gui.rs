@@ -53,13 +53,17 @@ fn ipc_call(dest: u64, request: &[u8], reply: &mut [u8]) -> io::Result<usize> {
 }
 
 fn alloc_shared_page_count(page_count: usize) -> io::Result<u64> {
-    syscall_io(syscall::call4(
+    let virt = syscall_io(syscall::call4(
         syscall::SyscallNumber::AllocSharedPages,
         page_count as u64,
         0,
         0,
         0,
-    ))
+    ))?;
+    if virt == 0 || (virt & (PAGE_SIZE as u64 - 1)) != 0 {
+        return Err(errno_io(libc::EIO as u64));
+    }
+    Ok(virt)
 }
 
 fn send_pages(dest: u64, page_count: usize, local_base: u64) -> io::Result<()> {
@@ -73,12 +77,16 @@ fn send_pages(dest: u64, page_count: usize, local_base: u64) -> io::Result<()> {
     Ok(())
 }
 
-fn put_u32(out: &mut Vec<u8>, value: u32) {
-    out.extend_from_slice(&value.to_le_bytes());
+fn put_u32(out: &mut [u8], offset: usize, value: u32) {
+    out[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
 }
 
-fn put_u64(out: &mut Vec<u8>, value: u64) {
-    out.extend_from_slice(&value.to_le_bytes());
+fn put_i32(out: &mut [u8], offset: usize, value: i32) {
+    out[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+}
+
+fn put_u64(out: &mut [u8], offset: usize, value: u64) {
+    out[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
 }
 
 fn status_from(reply: &[u8]) -> io::Result<()> {
@@ -99,12 +107,12 @@ fn create_surface(
     width: u32,
     height: u32,
 ) -> io::Result<u64> {
-    let mut request = Vec::new();
-    put_u32(&mut request, OP_CREATE_SURFACE);
-    put_u32(&mut request, ROLE_TOPLEVEL);
-    put_u32(&mut request, width);
-    put_u32(&mut request, height);
-    put_u64(&mut request, event_endpoint);
+    let mut request = [0u8; 24];
+    put_u32(&mut request, 0, OP_CREATE_SURFACE);
+    put_u32(&mut request, 4, ROLE_TOPLEVEL);
+    put_u32(&mut request, 8, width);
+    put_u32(&mut request, 12, height);
+    put_u64(&mut request, 16, event_endpoint);
     let mut reply = [0u8; 16];
     let len = ipc_call(compositor, &request, &mut reply)?;
     if len < 12 {
@@ -141,13 +149,13 @@ fn attach_buffer(compositor: u64, token: u64, width: usize, height: usize) -> io
             pixels[y * width + x] = pixel;
         }
     }
-    let mut request = Vec::with_capacity(28);
-    put_u32(&mut request, OP_ATTACH_BUFFER);
-    put_u64(&mut request, token);
-    put_u32(&mut request, width as u32);
-    put_u32(&mut request, height as u32);
-    put_u32(&mut request, width as u32);
-    put_u32(&mut request, PIXEL_FORMAT_XRGB8888);
+    let mut request = [0u8; 28];
+    put_u32(&mut request, 0, OP_ATTACH_BUFFER);
+    put_u64(&mut request, 4, token);
+    put_u32(&mut request, 12, width as u32);
+    put_u32(&mut request, 16, height as u32);
+    put_u32(&mut request, 20, width as u32);
+    put_u32(&mut request, 24, PIXEL_FORMAT_XRGB8888);
     let mut reply = [0u8; 16];
     let len = ipc_call(compositor, &request, &mut reply)?;
     if len < 4 {
@@ -158,11 +166,11 @@ fn attach_buffer(compositor: u64, token: u64, width: usize, height: usize) -> io
 }
 
 fn set_position(compositor: u64, token: u64, x: i32, y: i32) -> io::Result<()> {
-    let mut request = Vec::new();
-    put_u32(&mut request, OP_SET_POSITION);
-    put_u64(&mut request, token);
-    request.extend_from_slice(&x.to_le_bytes());
-    request.extend_from_slice(&y.to_le_bytes());
+    let mut request = [0u8; 20];
+    put_u32(&mut request, 0, OP_SET_POSITION);
+    put_u64(&mut request, 4, token);
+    put_i32(&mut request, 12, x);
+    put_i32(&mut request, 16, y);
     let mut reply = [0u8; 16];
     let len = ipc_call(compositor, &request, &mut reply)?;
     if len < 4 {
@@ -172,9 +180,9 @@ fn set_position(compositor: u64, token: u64, x: i32, y: i32) -> io::Result<()> {
 }
 
 fn simple_token_request(compositor: u64, opcode: u32, token: u64) -> io::Result<()> {
-    let mut request = Vec::new();
-    put_u32(&mut request, opcode);
-    put_u64(&mut request, token);
+    let mut request = [0u8; 12];
+    put_u32(&mut request, 0, opcode);
+    put_u64(&mut request, 4, token);
     let mut reply = [0u8; 16];
     let len = ipc_call(compositor, &request, &mut reply)?;
     if len < 4 {
