@@ -13,6 +13,11 @@ const SURFACE_W: usize = 320;
 const SURFACE_H: usize = 240;
 const PAGE_SIZE: usize = 4096;
 
+static mut CREATE_SURFACE_REQ: [u8; 24] = [0; 24];
+static mut ATTACH_BUFFER_REQ: [u8; 28] = [0; 28];
+static mut TOKEN_REQ: [u8; 12] = [0; 12];
+static mut IPC_REPLY: [u8; 16] = [0; 16];
+
 fn errno_io(errno: u64) -> io::Error {
     io::Error::from_raw_os_error(errno as i32)
 }
@@ -82,6 +87,10 @@ fn put_u64(out: &mut [u8], offset: usize, value: u64) {
     out[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
 }
 
+fn static_buf<const N: usize>(buf: *mut [u8; N]) -> &'static mut [u8; N] {
+    unsafe { &mut *buf }
+}
+
 fn status_from(reply: &[u8]) -> io::Result<()> {
     if reply.len() < 4 {
         return Err(errno_io(libc::EIO as u64));
@@ -100,14 +109,16 @@ fn create_surface(
     width: u32,
     height: u32,
 ) -> io::Result<u64> {
-    let mut request = [0u8; 24];
-    put_u32(&mut request, 0, OP_CREATE_SURFACE);
-    put_u32(&mut request, 4, ROLE_TOPLEVEL);
-    put_u32(&mut request, 8, width);
-    put_u32(&mut request, 12, height);
-    put_u64(&mut request, 16, event_endpoint);
-    let mut reply = [0u8; 16];
-    let len = ipc_call(compositor, &request, &mut reply)?;
+    let request = static_buf(core::ptr::addr_of_mut!(CREATE_SURFACE_REQ));
+    request.fill(0);
+    put_u32(request, 0, OP_CREATE_SURFACE);
+    put_u32(request, 4, ROLE_TOPLEVEL);
+    put_u32(request, 8, width);
+    put_u32(request, 12, height);
+    put_u64(request, 16, event_endpoint);
+    let reply = static_buf(core::ptr::addr_of_mut!(IPC_REPLY));
+    reply.fill(0);
+    let len = ipc_call(compositor, request, reply)?;
     if len < 12 {
         return Err(errno_io(libc::EIO as u64));
     }
@@ -142,15 +153,17 @@ fn attach_buffer(compositor: u64, token: u64, width: usize, height: usize) -> io
             pixels[y * width + x] = pixel;
         }
     }
-    let mut request = [0u8; 28];
-    put_u32(&mut request, 0, OP_ATTACH_BUFFER);
-    put_u64(&mut request, 4, token);
-    put_u32(&mut request, 12, width as u32);
-    put_u32(&mut request, 16, height as u32);
-    put_u32(&mut request, 20, width as u32);
-    put_u32(&mut request, 24, PIXEL_FORMAT_XRGB8888);
-    let mut reply = [0u8; 16];
-    let len = ipc_call(compositor, &request, &mut reply)?;
+    let request = static_buf(core::ptr::addr_of_mut!(ATTACH_BUFFER_REQ));
+    request.fill(0);
+    put_u32(request, 0, OP_ATTACH_BUFFER);
+    put_u64(request, 4, token);
+    put_u32(request, 12, width as u32);
+    put_u32(request, 16, height as u32);
+    put_u32(request, 20, width as u32);
+    put_u32(request, 24, PIXEL_FORMAT_XRGB8888);
+    let reply = static_buf(core::ptr::addr_of_mut!(IPC_REPLY));
+    reply.fill(0);
+    let len = ipc_call(compositor, request, reply)?;
     if len < 4 {
         return Err(errno_io(libc::EIO as u64));
     }
@@ -159,11 +172,13 @@ fn attach_buffer(compositor: u64, token: u64, width: usize, height: usize) -> io
 }
 
 fn simple_token_request(compositor: u64, opcode: u32, token: u64) -> io::Result<()> {
-    let mut request = [0u8; 12];
-    put_u32(&mut request, 0, opcode);
-    put_u64(&mut request, 4, token);
-    let mut reply = [0u8; 16];
-    let len = ipc_call(compositor, &request, &mut reply)?;
+    let request = static_buf(core::ptr::addr_of_mut!(TOKEN_REQ));
+    request.fill(0);
+    put_u32(request, 0, opcode);
+    put_u64(request, 4, token);
+    let reply = static_buf(core::ptr::addr_of_mut!(IPC_REPLY));
+    reply.fill(0);
+    let len = ipc_call(compositor, request, reply)?;
     if len < 4 {
         return Err(errno_io(libc::EIO as u64));
     }
