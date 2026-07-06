@@ -10,10 +10,11 @@ const OP_COMMIT: u32 = 4;
 const OP_SET_POSITION: u32 = 5;
 const ROLE_TOPLEVEL: u32 = 1;
 const PIXEL_FORMAT_XRGB8888: u32 = 1;
-const SURFACE_W: usize = 20;
-const SURFACE_H: usize = 14;
-const SURFACE_X: i32 = 6;
-const SURFACE_Y: i32 = 5;
+const SURFACE_W: usize = 320;
+const SURFACE_H: usize = 240;
+const SURFACE_X: i32 = 32;
+const SURFACE_Y: i32 = 24;
+const PAGE_SIZE: usize = 4096;
 
 fn errno_io(errno: u64) -> io::Error {
     io::Error::from_raw_os_error(errno as i32)
@@ -49,6 +50,27 @@ fn ipc_call(dest: u64, request: &[u8], reply: &mut [u8]) -> io::Result<usize> {
         reply.len() as u64,
     ))?;
     Ok((msg & 0xffff_ffff) as usize)
+}
+
+fn alloc_shared_pages(phys_pages: &mut [u64]) -> io::Result<u64> {
+    syscall_io(syscall::call4(
+        syscall::SyscallNumber::AllocSharedPages,
+        phys_pages.len() as u64,
+        phys_pages.as_mut_ptr() as u64,
+        phys_pages.len() as u64,
+        0,
+    ))
+}
+
+fn send_pages(dest: u64, phys_pages: &[u64], local_base: u64) -> io::Result<()> {
+    syscall_io(syscall::call4(
+        syscall::SyscallNumber::IpcSendPages,
+        dest,
+        phys_pages.as_ptr() as u64,
+        phys_pages.len() as u64,
+        local_base,
+    ))?;
+    Ok(())
 }
 
 fn put_u32(out: &mut Vec<u8>, value: u32) {
@@ -95,33 +117,45 @@ fn create_surface(
 }
 
 fn attach_buffer(compositor: u64, token: u64, width: usize, height: usize) -> io::Result<()> {
-    let mut request = Vec::with_capacity(28 + width * height * 4);
-    put_u32(&mut request, OP_ATTACH_BUFFER);
-    put_u64(&mut request, token);
-    put_u32(&mut request, width as u32);
-    put_u32(&mut request, height as u32);
-    put_u32(&mut request, width as u32);
-    put_u32(&mut request, PIXEL_FORMAT_XRGB8888);
+    let byte_len = width
+        .checked_mul(height)
+        .and_then(|pixels| pixels.checked_mul(4))
+        .ok_or_else(|| errno_io(libc::EINVAL as u64))?;
+    let page_count = byte_len
+        .checked_add(PAGE_SIZE - 1)
+        .map(|len| len / PAGE_SIZE)
+        .ok_or_else(|| errno_io(libc::EINVAL as u64))?;
+    let mut phys_pages = vec![0u64; page_count];
+    let virt = alloc_shared_pages(&mut phys_pages)?;
+    let pixels = unsafe { std::slice::from_raw_parts_mut(virt as *mut u32, width * height) };
     for y in 0..height {
         for x in 0..width {
             let border = x == 0 || y == 0 || x + 1 == width || y + 1 == height;
             let pixel = if border {
                 0xffff_ffffu32
             } else {
-                let r = 0x30 + (x as u32 * 5);
-                let g = 0x80 + (y as u32 * 6);
+                let r = 0x30 + (x as u32 * 5 / width as u32);
+                let g = 0x80 + (y as u32 * 6 / height as u32);
                 let b = 0xc0u32;
                 0xff00_0000 | (r << 16) | (g << 8) | b
             };
-            request.extend_from_slice(&pixel.to_le_bytes());
+            pixels[y * width + x] = pixel;
         }
     }
+    let mut request = Vec::with_capacity(28);
+    put_u32(&mut request, OP_ATTACH_BUFFER);
+    put_u64(&mut request, token);
+    put_u32(&mut request, width as u32);
+    put_u32(&mut request, height as u32);
+    put_u32(&mut request, width as u32);
+    put_u32(&mut request, PIXEL_FORMAT_XRGB8888);
     let mut reply = [0u8; 16];
     let len = ipc_call(compositor, &request, &mut reply)?;
     if len < 4 {
         return Err(errno_io(libc::EIO as u64));
     }
-    status_from(&reply[..4])
+    status_from(&reply[..4])?;
+    send_pages(compositor, &phys_pages, virt)
 }
 
 fn set_position(compositor: u64, token: u64, x: i32, y: i32) -> io::Result<()> {
