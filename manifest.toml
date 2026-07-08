@@ -61,3 +61,14 @@ requires = [
     "ipc.server",
     "window.create",
 ]
+
+[[binary]]
+path = "/bin/test_desktop"
+capability_profile = "coreutils.test_desktop"
+kind = "application"
+requires = [
+    "ipc.client",
+    "ipc.server",
+    "window.create",
+    "window.overlay",
+]
