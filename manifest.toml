@@ -63,6 +63,16 @@ requires = [
 ]
 
 [[binary]]
+path = "/bin/test_app"
+capability_profile = "coreutils.test_app"
+kind = "application"
+requires = [
+    "ipc.client",
+    "ipc.server",
+    "window.create",
+]
+
+[[binary]]
 path = "/bin/test_desktop"
 capability_profile = "coreutils.test_desktop"
 kind = "application"
