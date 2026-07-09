@@ -17,6 +17,7 @@ const DECOR_EVENT_WINDOW: u32 = 0x5749_4e44;
 const EVENT_POINTER_BUTTON: u32 = 5;
 const PIXEL_FORMAT_XRGB8888: u32 = 1;
 const PAGE_SIZE: usize = 4096;
+const MAX_WINDOW_DIMENSION: u32 = 4096;
 const TITLE_BAR_HEIGHT: usize = 28;
 
 static mut SUBSCRIBE_REQ: [u8; 12] = [0; 12];
@@ -148,9 +149,7 @@ fn request_window_overlay_capability() -> io::Result<()> {
         Ok(_) | Err(_) => {
             let tid = match syscall::call0(syscall::SyscallNumber::GetTid) {
                 Ok(tid) => tid,
-                Err(error) => {
-                    return Err(errno_io(error.errno().unwrap_or(libc::EIO as u64)))
-                }
+                Err(error) => return Err(errno_io(error.errno().unwrap_or(libc::EIO as u64))),
             };
             if tid == 0 {
                 return Err(errno_io(libc::EIO as u64));
@@ -230,8 +229,8 @@ fn request_window_overlay_capability() -> io::Result<()> {
 }
 
 fn log_line(message: &str) {
-    println!("{message}");
-    let _ = io::stdout().flush();
+    eprintln!("{message}");
+    let _ = io::stderr().flush();
 }
 
 fn log_error(label: &str, error: &io::Error) {
@@ -253,6 +252,9 @@ fn require_window_overlay_capability() -> io::Result<()> {
 }
 
 fn subscribe_with_log(compositor: u64, event_endpoint: u64) -> io::Result<()> {
+    log_line(&format!(
+        "test_desktop: subscribing compositor={compositor} event_endpoint={event_endpoint}"
+    ));
     match subscribe(compositor, event_endpoint) {
         Ok(()) => {
             log_line("test_desktop: subscribed decoration manager");
@@ -266,8 +268,24 @@ fn subscribe_with_log(compositor: u64, event_endpoint: u64) -> io::Result<()> {
 }
 
 fn wait_event_with_log(event: *mut u8, event_endpoint: u64) -> io::Result<usize> {
+    unsafe {
+        zero_raw(event, 128);
+    }
     match ipc_wait_raw(event, 128, event_endpoint) {
-        Ok(len) => Ok(len),
+        Ok(len) => {
+            if len >= 20 {
+                let opcode = unsafe { read_u32_raw(event, 0) };
+                let width = unsafe { read_u32_raw(event, 12) };
+                let height = unsafe { read_u32_raw(event, 16) };
+                eprintln!(
+                    "test_desktop: event len={len} opcode=0x{opcode:08x} w={width} h={height}"
+                );
+            } else {
+                eprintln!("test_desktop: event len={len}");
+            }
+            let _ = io::stderr().flush();
+            Ok(len)
+        }
         Err(error) => {
             log_error("test_desktop: event wait failed", &error);
             Err(error)
@@ -418,7 +436,24 @@ fn subscribe(compositor: u64, event_endpoint: u64) -> io::Result<()> {
         put_u64_raw(request, 4, event_endpoint);
         zero_raw(reply, 16);
     }
+    eprintln!("test_desktop: subscribe ipc_call begin");
+    let _ = io::stderr().flush();
     let len = ipc_call_raw(compositor, request, 12, reply, 16)?;
+    eprintln!("test_desktop: subscribe ipc_call reply len={len}");
+    let _ = io::stderr().flush();
+    if len >= 16 {
+        let b0 = unsafe { read_u64_raw(reply, 0) };
+        let b1 = unsafe { read_u64_raw(reply, 8) };
+        eprintln!("test_desktop: subscribe reply raw=0x{b0:016x} 0x{b1:016x}");
+        let _ = io::stderr().flush();
+    }
+    let status = if len >= 4 {
+        unsafe { read_u32_raw(reply, 0) }
+    } else {
+        libc::EIO as u32
+    };
+    eprintln!("test_desktop: subscribe status={status}");
+    let _ = io::stderr().flush();
     status_from_raw(reply, len)
 }
 
@@ -430,10 +465,23 @@ fn parse_window_event(ptr: *const u8, len: usize) -> Option<WindowInfo> {
     if opcode != DECOR_EVENT_WINDOW {
         return None;
     }
+    let token = unsafe { read_u64_raw(ptr, 4) };
+    let width = unsafe { read_u32_raw(ptr, 12) };
+    let height = unsafe { read_u32_raw(ptr, 16) };
+    if token == 0
+        || width == 0
+        || height == 0
+        || width > MAX_WINDOW_DIMENSION
+        || height > MAX_WINDOW_DIMENSION
+    {
+        eprintln!("test_desktop: invalid window event token=0x{token:016x} size={width}x{height}");
+        let _ = io::stderr().flush();
+        return None;
+    }
     Some(WindowInfo {
-        token: unsafe { read_u64_raw(ptr, 4) },
-        width: unsafe { read_u32_raw(ptr, 12) },
-        height: unsafe { read_u32_raw(ptr, 16) },
+        token,
+        width,
+        height,
     })
 }
 
@@ -506,8 +554,29 @@ fn simple_token_request(compositor: u64, opcode: u32, token: u64) -> io::Result<
         put_u64_raw(request, 4, token);
         zero_raw(reply, 16);
     }
+    println!(
+        "test_desktop: token request opcode={} token=0x{:016x}",
+        opcode, token
+    );
     let len = ipc_call_raw(compositor, request, 12, reply, 16)?;
+    println!("test_desktop: token reply opcode={} len={len}", opcode);
     status_from_raw(reply, len)
+}
+
+fn send_token_request(compositor: u64, opcode: u32, token: u64) -> io::Result<()> {
+    let request = core::ptr::addr_of_mut!(TOKEN_REQ).cast::<u8>();
+    unsafe {
+        zero_raw(request, 12);
+        put_u32_raw(request, 0, opcode);
+        put_u64_raw(request, 4, token);
+    }
+    syscall_io(syscall::call3(
+        syscall::SyscallNumber::IpcSend,
+        compositor,
+        request as u64,
+        12,
+    ))?;
+    Ok(())
 }
 
 fn attach_decoration(compositor: u64, window: WindowInfo, decoration_token: u64) -> io::Result<()> {
@@ -524,7 +593,12 @@ fn attach_decoration(compositor: u64, window: WindowInfo, decoration_token: u64)
         put_u32_raw(request, 32, 0);
         zero_raw(reply, 16);
     }
+    println!(
+        "test_desktop: attach decoration request window=0x{:016x} decoration=0x{:016x}",
+        window.token, decoration_token
+    );
     let len = ipc_call_raw(compositor, request, 36, reply, 16)?;
+    println!("test_desktop: attach decoration reply len={len}");
     status_from_raw(reply, len)
 }
 
@@ -548,15 +622,21 @@ fn decorate_window(compositor: u64, event_endpoint: u64, window: WindowInfo) -> 
     if window.width == 0 || window.height == 0 {
         return Err(errno_io(libc::EINVAL as u64));
     }
+    println!(
+        "test_desktop: decorating window=0x{:016x} size={}x{}",
+        window.token, window.width, window.height
+    );
     let decoration = create_decoration(compositor, event_endpoint, window)?;
+    println!("test_desktop: decoration surface=0x{decoration:016x}");
     attach_buffer(
         compositor,
         decoration,
         window.width as usize,
         TITLE_BAR_HEIGHT,
     )?;
+    println!("test_desktop: decoration buffer attached");
     simple_token_request(compositor, OP_DAMAGE, decoration)?;
-    simple_token_request(compositor, OP_COMMIT, decoration)?;
+    println!("test_desktop: decoration damaged");
     attach_decoration(compositor, window, decoration)?;
     println!(
         "test_desktop: decorated window=0x{:016x} decoration=0x{:016x}",
