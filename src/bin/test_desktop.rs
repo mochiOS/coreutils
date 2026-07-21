@@ -2,10 +2,13 @@ use std::io;
 use std::io::Write;
 
 use mochi_user_syscall as syscall;
+use mochios_capability_protocol::{
+    CAPABILITY_PROMPT_OPCODE, CapabilityClass, CapabilityDecision, CapabilityRequest,
+    ExecutableIdentity, MAX_CAPABILITY_NAME_LEN, MAX_REASON_LEN, ResourceDescriptor,
+};
 
 const COMPOSITOR_SERVICE_NAME: &str = "compositor.service";
 const WINDOW_OVERLAY_CAPABILITY: &str = "window.overlay";
-const CAPABILITY_PROMPT_OPCODE: u32 = 0x4350_5251;
 const OP_ATTACH_BUFFER: u32 = 2;
 const OP_DAMAGE: u32 = 3;
 const OP_COMMIT: u32 = 4;
@@ -28,78 +31,6 @@ static mut ATTACH_BUFFER_REQ: [u8; 28] = [0; 28];
 static mut TOKEN_REQ: [u8; 12] = [0; 12];
 static mut IPC_REPLY: [u8; 16] = [0; 16];
 static mut EVENT_BUF: [u8; 128] = [0; 128];
-
-#[repr(u32)]
-#[derive(Clone, Copy)]
-enum CapabilityClass {
-    UserGrantable = 1,
-}
-
-#[repr(u32)]
-#[derive(Clone, Copy)]
-enum CapabilityDecision {
-    AllowOnce = 1,
-    AllowForProcess = 2,
-    AllowPersistently = 3,
-    AllowAllUserGrantable = 4,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct ExecutableIdentity {
-    path_len: u16,
-    reserved: u16,
-    digest: [u8; 32],
-    path: [u8; 256],
-}
-
-impl Default for ExecutableIdentity {
-    fn default() -> Self {
-        Self {
-            path_len: 0,
-            reserved: 0,
-            digest: [0; 32],
-            path: [0; 256],
-        }
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct ResourceDescriptor {
-    kind: u32,
-    path_len: u16,
-    reserved: u16,
-    path: [u8; 256],
-}
-
-impl Default for ResourceDescriptor {
-    fn default() -> Self {
-        Self {
-            kind: 0,
-            path_len: 0,
-            reserved: 0,
-            path: [0; 256],
-        }
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct CapabilityRequest {
-    opcode: u32,
-    process_id: u64,
-    executable: ExecutableIdentity,
-    capability_class: CapabilityClass,
-    capability_len: u16,
-    resource: ResourceDescriptor,
-    reason_len: u16,
-    interactive: u8,
-    decision_scope: u8,
-    reserved0: u16,
-    capability: [u8; 64],
-    reason: [u8; 128],
-}
 
 #[derive(Clone, Copy)]
 struct WindowInfo {
@@ -169,8 +100,8 @@ fn request_window_overlay_capability() -> io::Result<()> {
         interactive: 1,
         decision_scope: 0,
         reserved0: 0,
-        capability: [0; 64],
-        reason: [0; 128],
+        capability: [0; MAX_CAPABILITY_NAME_LEN],
+        reason: [0; MAX_REASON_LEN],
     };
     request.executable.path_len = exec_bytes.len() as u16;
     request.executable.path[..exec_bytes.len()].copy_from_slice(exec_bytes);

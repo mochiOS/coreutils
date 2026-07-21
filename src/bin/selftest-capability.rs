@@ -1,101 +1,8 @@
-#[repr(u32)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-enum CapabilityClass {
-    #[default]
-    UserGrantable = 1,
-    Privileged = 2,
-    SystemOnly = 3,
-}
-
-#[repr(u32)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-enum CapabilityDecision {
-    AllowOnce = 1,
-    AllowForProcess = 2,
-    AllowPersistently = 3,
-    AllowAllUserGrantable = 4,
-    #[default]
-    Deny = 5,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct ExecutableIdentity {
-    path_len: u16,
-    reserved: u16,
-    digest: [u8; 32],
-    path: [u8; 256],
-}
-
-impl Default for ExecutableIdentity {
-    fn default() -> Self {
-        Self {
-            path_len: 0,
-            reserved: 0,
-            digest: [0; 32],
-            path: [0; 256],
-        }
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct ResourceDescriptor {
-    kind: u32,
-    path_len: u16,
-    reserved: u16,
-    path: [u8; 256],
-}
-
-impl Default for ResourceDescriptor {
-    fn default() -> Self {
-        Self {
-            kind: 0,
-            path_len: 0,
-            reserved: 0,
-            path: [0; 256],
-        }
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct CapabilityRequest {
-    opcode: u32,
-    process_id: u64,
-    executable: ExecutableIdentity,
-    capability_class: CapabilityClass,
-    capability_len: u16,
-    resource: ResourceDescriptor,
-    reason_len: u16,
-    interactive: u8,
-    decision_scope: u8,
-    reserved0: u16,
-    capability: [u8; 64],
-    reason: [u8; 128],
-}
-
-impl Default for CapabilityRequest {
-    fn default() -> Self {
-        Self {
-            opcode: 0,
-            process_id: 0,
-            executable: ExecutableIdentity::default(),
-            capability_class: CapabilityClass::UserGrantable,
-            capability_len: 0,
-            resource: ResourceDescriptor::default(),
-            reason_len: 0,
-            interactive: 0,
-            decision_scope: 0,
-            reserved0: 0,
-            capability: [0; 64],
-            reason: [0; 128],
-        }
-    }
-}
-
-const CAPABILITY_PROMPT_OPCODE: u32 = 0x4350_5251;
-const CAPABILITY_PERSISTENT_QUERY_OPCODE: u32 = 0x4350_5150;
+use mochios_capability_protocol::{
+    CAPABILITY_PERSISTENT_QUERY_OPCODE, CAPABILITY_PROMPT_OPCODE, CapabilityClass,
+    CapabilityDecision, CapabilityPromptRequest, CapabilityRequest, ExecutableIdentity,
+    MAX_CAPABILITY_NAME_LEN, MAX_REASON_LEN, ResourceDescriptor,
+};
 
 fn request_new(
     process_id: u64,
@@ -106,8 +13,8 @@ fn request_new(
     reason: Option<&str>,
     interactive: bool,
     capability_class: CapabilityClass,
-) -> Option<CapabilityRequest> {
-    let mut request = CapabilityRequest {
+) -> Option<CapabilityPromptRequest> {
+    let mut request = CapabilityPromptRequest {
         opcode: CAPABILITY_PROMPT_OPCODE,
         process_id,
         executable: ExecutableIdentity::default(),
@@ -118,8 +25,8 @@ fn request_new(
         interactive: interactive as u8,
         decision_scope: 0,
         reserved0: 0,
-        capability: [0; 64],
-        reason: [0; 128],
+        capability: [0; MAX_CAPABILITY_NAME_LEN],
+        reason: [0; MAX_REASON_LEN],
     };
 
     let exec_bytes = executable_path.as_bytes();
@@ -228,8 +135,8 @@ fn check(name: &str, condition: bool, failures: &mut usize) {
 
 fn check_request(
     name: &str,
-    request: Option<CapabilityRequest>,
-    predicate: impl FnOnce(&CapabilityRequest) -> bool,
+    request: Option<CapabilityPromptRequest>,
+    predicate: impl FnOnce(&CapabilityPromptRequest) -> bool,
     failures: &mut usize,
 ) {
     match request {
