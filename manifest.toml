@@ -82,3 +82,12 @@ requires = [
     "window.create",
     "window.overlay",
 ]
+
+[[binary]]
+path = "/bin/selftest-ext2-write"
+capability_profile = "coreutils.selftest-ext2-write"
+kind = "application"
+requires = [
+    "fs.read.tmp",
+    "fs.write.tmp",
+]
