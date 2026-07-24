@@ -285,7 +285,7 @@ fn verify_enospc() -> io::Result<()> {
         .write(true)
         .create_new(true)
         .open(ENOSPC_PATH)?;
-    let block = [0x5au8; BLOCK_SIZE];
+    let block = vec![0x5au8; 16 * BLOCK_SIZE];
     let mut written = 0usize;
     loop {
         match file.write(&block) {
