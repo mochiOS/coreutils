@@ -53,6 +53,15 @@ requires = [
 ]
 
 [[binary]]
+path = "/bin/net"
+capability_profile = "coreutils.net"
+kind = "application"
+requires = [
+    "ipc.client",
+    "net.connect",
+]
+
+[[binary]]
 path = "/bin/test_gui"
 capability_profile = "coreutils.test_gui"
 kind = "application"

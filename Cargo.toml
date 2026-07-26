@@ -12,6 +12,7 @@ libc = { path = "../../libraries/libc" }
 libc = "0.2.185"
 mochi-user-syscall = { path = "../../user/crates/syscall" }
 mochios-capability-protocol = { path = "../../user/crates/capability-protocol" }
+mochios-net-device-protocol = { path = "../../user/crates/net-device-protocol" }
 
 [lib]
 path = "src/lib.rs"

@@ -9,6 +9,7 @@ dependencies = [
  "libc",
  "mochi-user-syscall",
  "mochios-capability-protocol",
+ "mochios-net-device-protocol",
 ]
 
 [[package]]
@@ -30,6 +31,10 @@ dependencies = [
 
 [[package]]
 name = "mochios-capability-protocol"
+version = "0.1.0"
+
+[[package]]
+name = "mochios-net-device-protocol"
 version = "0.1.0"
 
 [[patch.unused]]
