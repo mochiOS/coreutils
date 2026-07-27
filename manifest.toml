@@ -59,6 +59,8 @@ kind = "application"
 requires = [
     "ipc.client",
     "net.connect",
+    "net.tls.connect",
+    "net.http.request",
 ]
 
 [[binary]]
