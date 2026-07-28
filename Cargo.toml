@@ -5,14 +5,11 @@ edition = "2024"
 
 [workspace]
 
-[patch.crates-io]
-libc = { path = "../../libraries/libc" }
-
 [dependencies]
-libc = "0.2.185"
-mochi-user-syscall = { path = "../../user/crates/syscall" }
-mochios-capability-protocol = { path = "../../user/crates/capability-protocol" }
-mochios-net-device-protocol = { path = "../../user/crates/net-device-protocol" }
+libc = { git = "https://github.com/mochiOS/libc", package = "libc" }
+mochi-user-syscall = { git = "https://github.com/mochiOS/syscalls", package = "mochi-user-syscall" }
+mochios-capability-protocol = { git = "https://github.com/mochiOS/syscalls", package = "mochios-capability-protocol" }
+mochios-net-device-protocol = { git = "https://github.com/mochiOS/syscalls", package = "mochios-net-device-protocol" }
 
 [lib]
 path = "src/lib.rs"
