@@ -423,6 +423,7 @@ fn http_get(url: &str) -> io::Result<HttpResponseInfo> {
         TCP_EXCHANGE_TIMEOUT_MS,
         url,
         "",
+        "",
         &[],
         &mut request,
     )
