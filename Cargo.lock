@@ -10,6 +10,7 @@ dependencies = [
  "mochi-user-syscall",
  "mochios-capability-protocol",
  "mochios-net-device-protocol",
+ "mochios-user-database",
 ]
 
 [[package]]
@@ -39,6 +40,10 @@ source = "git+https://github.com/mochiOS/syscalls#bf045fa98216eb2a9a8edc08836d14
 name = "mochios-net-device-protocol"
 version = "0.1.0"
 source = "git+https://github.com/mochiOS/syscalls#bf045fa98216eb2a9a8edc08836d148dfa3f418e"
+
+[[package]]
+name = "mochios-user-database"
+version = "0.1.0"
 
 [[patch.unused]]
 name = "addr2line"

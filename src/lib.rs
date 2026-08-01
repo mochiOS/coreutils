@@ -3,6 +3,8 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+pub mod user_management;
+
 fn transient_pause() {
     for _ in 0..256 {
         core::hint::spin_loop();

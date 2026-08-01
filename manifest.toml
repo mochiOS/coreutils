@@ -45,6 +45,40 @@ capability_profile = "coreutils.rm"
 kind = "application"
 
 [[binary]]
+path = "/bin/id"
+capability_profile = "coreutils.id"
+kind = "application"
+requires = [
+    "fs.read.all",
+]
+
+[[binary]]
+path = "/bin/userlist"
+capability_profile = "coreutils.userlist"
+kind = "application"
+requires = [
+    "fs.read.all",
+]
+
+[[binary]]
+path = "/bin/useradd"
+capability_profile = "coreutils.useradd"
+kind = "application"
+requires = [
+    "fs.read.all",
+    "fs.write.all",
+]
+
+[[binary]]
+path = "/bin/userdel"
+capability_profile = "coreutils.userdel"
+kind = "application"
+requires = [
+    "fs.read.all",
+    "fs.write.all",
+]
+
+[[binary]]
 path = "/bin/mpk"
 capability_profile = "coreutils.mpk"
 kind = "application"
