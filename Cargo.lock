@@ -11,6 +11,7 @@ dependencies = [
  "mochios-capability-protocol",
  "mochios-net-device-protocol",
  "mochios-user-database",
+ "mochios-user-protocol",
 ]
 
 [[package]]
@@ -21,12 +22,12 @@ source = "git+https://github.com/mochiOS/libc#d2072c233a70c5044bc9adc1d6c60cafc3
 [[package]]
 name = "mnu-abi"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/mnu#7460aa5cf1a12f4c69735644601775c38dcf21be"
+source = "git+https://github.com/mochiOS/mnu#758c46dc392577297f60b95dd3cbba891a434a00"
 
 [[package]]
 name = "mochi-user-syscall"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/syscalls#bf045fa98216eb2a9a8edc08836d148dfa3f418e"
+source = "git+https://github.com/mochiOS/syscalls#01bf54f70c750e3a2ed0e0b183dd93a3e2bee934"
 dependencies = [
  "mnu-abi",
 ]
@@ -34,15 +35,19 @@ dependencies = [
 [[package]]
 name = "mochios-capability-protocol"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/syscalls#bf045fa98216eb2a9a8edc08836d148dfa3f418e"
+source = "git+https://github.com/mochiOS/syscalls#01bf54f70c750e3a2ed0e0b183dd93a3e2bee934"
 
 [[package]]
 name = "mochios-net-device-protocol"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/syscalls#bf045fa98216eb2a9a8edc08836d148dfa3f418e"
+source = "git+https://github.com/mochiOS/syscalls#01bf54f70c750e3a2ed0e0b183dd93a3e2bee934"
 
 [[package]]
 name = "mochios-user-database"
+version = "0.1.0"
+
+[[package]]
+name = "mochios-user-protocol"
 version = "0.1.0"
 
 [[patch.unused]]

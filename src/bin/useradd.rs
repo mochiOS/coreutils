@@ -14,7 +14,7 @@ struct Options {
 fn main() -> io::Result<()> {
     coreutils::user_management::require_root()?;
     let options = parse_options()?;
-    let mut database = coreutils::user_management::load_database()?;
+    let database = coreutils::user_management::load_database()?;
     let uid = options
         .uid
         .unwrap_or(database.next_regular_uid().map_err(invalid_data)?);
@@ -33,11 +33,12 @@ fn main() -> io::Result<()> {
         user.shell = shell;
     }
     user.validate().map_err(invalid_data)?;
-    database.add(user.clone()).map_err(invalid_data)?;
+    let mut validated = database;
+    validated.add(user.clone()).map_err(invalid_data)?;
     if options.create_home {
         coreutils::user_management::create_home(&user)?;
     }
-    coreutils::user_management::save_database(&database)?;
+    coreutils::user_management::add_user(user.clone())?;
     println!(
         "created user {} uid={} gid={} home={} locked=yes",
         user.name, user.uid, user.gid, user.home

@@ -48,16 +48,14 @@ kind = "application"
 path = "/bin/id"
 capability_profile = "coreutils.id"
 kind = "application"
-requires = [
-    "fs.read.all",
-]
 
 [[binary]]
 path = "/bin/userlist"
 capability_profile = "coreutils.userlist"
 kind = "application"
 requires = [
-    "fs.read.all",
+    "ipc.client",
+    "account.other.read",
 ]
 
 [[binary]]
@@ -65,7 +63,9 @@ path = "/bin/useradd"
 capability_profile = "coreutils.useradd"
 kind = "application"
 requires = [
-    "fs.read.all",
+    "ipc.client",
+    "account.other.read",
+    "account.other.modify",
     "fs.write.all",
 ]
 
@@ -74,7 +74,9 @@ path = "/bin/userdel"
 capability_profile = "coreutils.userdel"
 kind = "application"
 requires = [
-    "fs.read.all",
+    "ipc.client",
+    "account.other.read",
+    "account.other.modify",
     "fs.write.all",
 ]
 

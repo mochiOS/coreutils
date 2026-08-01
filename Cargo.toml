@@ -11,6 +11,7 @@ mochi-user-syscall = { git = "https://github.com/mochiOS/syscalls", package = "m
 mochios-capability-protocol = { git = "https://github.com/mochiOS/syscalls", package = "mochios-capability-protocol" }
 mochios-net-device-protocol = { git = "https://github.com/mochiOS/syscalls", package = "mochios-net-device-protocol" }
 mochios-user-database = { git = "https://github.com/mochiOS/syscalls", package = "mochios-user-database" }
+mochios-user-protocol = { git = "https://github.com/mochiOS/syscalls", package = "mochios-user-protocol" }
 
 [lib]
 path = "src/lib.rs"

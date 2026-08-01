@@ -3,11 +3,7 @@ use std::io;
 fn main() -> io::Result<()> {
     coreutils::user_management::require_root()?;
     let (name, remove_home) = parse_options()?;
-    let mut database = coreutils::user_management::load_database()?;
-    let user = database
-        .remove(&name)
-        .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))?;
-    coreutils::user_management::save_database(&database)?;
+    let user = coreutils::user_management::remove_user(&name)?;
     if remove_home {
         coreutils::user_management::remove_home(&user)?;
     }
