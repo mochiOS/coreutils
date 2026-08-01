@@ -13,6 +13,7 @@ const ENOSPC_PATH: &str = "/tmp/ext2-write-enospc.bin";
 const ENOSPC_MODE_PATH: &str = "/tmp/ext2-write-enospc.mode";
 const PREPARE_PASS_PATH: &str = "/tmp/ext2-write-prepare.pass";
 const VERIFY_PASS_PATH: &str = "/tmp/ext2-write-verify.pass";
+const NAMESPACE_DIR: &str = "/tmp/ext2-write-namespace";
 const BLOCK_SIZE: usize = 4096;
 const SINGLE_INDIRECT_FILE_LEN: usize = 13 * BLOCK_SIZE;
 const MAX_WRITABLE_SIZE: u64 = (12 + BLOCK_SIZE / 4) as u64 * BLOCK_SIZE as u64;
@@ -268,12 +269,41 @@ fn verify_errors() -> io::Result<()> {
     )
 }
 
+fn verify_namespace_mutations() -> io::Result<()> {
+    println!("selftest-ext2-write: namespace mutations");
+    let child_dir = format!("{NAMESPACE_DIR}/child");
+    let original = format!("{NAMESPACE_DIR}/a");
+    let longer = format!("{NAMESPACE_DIR}/renamed-file.txt");
+    let shorter = format!("{NAMESPACE_DIR}/b");
+    let nested = format!("{child_dir}/nested.txt");
+
+    fs::create_dir(NAMESPACE_DIR)?;
+    fs::write(&original, b"rename-payload")?;
+    fs::rename(&original, &longer)?;
+    require(fs::read(&longer)? == b"rename-payload", "long rename")?;
+    fs::rename(&longer, &shorter)?;
+    require(fs::read(&shorter)? == b"rename-payload", "short rename")?;
+    fs::remove_file(&shorter)?;
+
+    fs::create_dir(&child_dir)?;
+    fs::write(&nested, b"nested")?;
+    expect_errno(fs::remove_dir(NAMESPACE_DIR), 39, "non-empty directory")?;
+    fs::remove_file(&nested)?;
+    fs::remove_dir(&child_dir)?;
+    fs::remove_dir(NAMESPACE_DIR)?;
+    require(
+        fs::metadata(NAMESPACE_DIR).is_err(),
+        "removed namespace directory",
+    )
+}
+
 fn prepare() -> io::Result<()> {
     verify_create_and_overwrite()?;
     verify_hole_and_truncate()?;
     verify_single_indirect()?;
     verify_errors()?;
     verify_fd_errors()?;
+    verify_namespace_mutations()?;
     println!("selftest-ext2-write: prepare marker");
     fs::write(PREPARE_PASS_PATH, b"pass\n")?;
     File::open(PREPARE_PASS_PATH)?.sync_all()
