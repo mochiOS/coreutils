@@ -13,6 +13,9 @@ kind = "application"
 path = "/bin/ls"
 capability_profile = "coreutils.ls"
 kind = "application"
+requires = [
+    "fs.read.all",
+]
 
 [[binary]]
 path = "/bin/pwd"
@@ -33,16 +36,27 @@ kind = "application"
 path = "/bin/cat"
 capability_profile = "coreutils.cat"
 kind = "application"
+requires = [
+    "fs.read.all",
+]
 
 [[binary]]
 path = "/bin/touch"
 capability_profile = "coreutils.touch"
 kind = "application"
+requires = [
+    "fs.write.tmp",
+    "fs.write.user",
+]
 
 [[binary]]
 path = "/bin/rm"
 capability_profile = "coreutils.rm"
 kind = "application"
+requires = [
+    "fs.write.tmp",
+    "fs.write.user",
+]
 
 [[binary]]
 path = "/bin/id"
