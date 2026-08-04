@@ -1,6 +1,6 @@
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
-use std::os::unix::fs::OpenOptionsExt;
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt, chown};
 use std::path::{Path, PathBuf};
 
 use mochios_user_database::{UserDatabase, UserRecord};
@@ -257,6 +257,13 @@ pub fn create_home(record: &UserRecord) -> io::Result<()> {
     fs::create_dir_all(home)?;
     for name in STANDARD_HOME_DIRECTORIES {
         fs::create_dir_all(home.join(name))?;
+    }
+    fs::set_permissions(home, fs::Permissions::from_mode(0o700))?;
+    chown(home, Some(record.uid), Some(record.gid))?;
+    for name in STANDARD_HOME_DIRECTORIES {
+        let directory = home.join(name);
+        fs::set_permissions(&directory, fs::Permissions::from_mode(0o700))?;
+        chown(&directory, Some(record.uid), Some(record.gid))?;
     }
     Ok(())
 }

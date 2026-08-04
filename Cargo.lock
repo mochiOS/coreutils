@@ -22,7 +22,6 @@ source = "git+https://github.com/mochiOS/libc#d2072c233a70c5044bc9adc1d6c60cafc3
 [[package]]
 name = "mnu-abi"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/mnu#26fda999d6a2162b39bd51100ec00145ace585b4"
 
 [[package]]
 name = "mochi-user-syscall"
@@ -45,9 +44,31 @@ source = "git+https://github.com/mochiOS/syscalls#e00e535b543a462f89ba77a9353273
 [[package]]
 name = "mochios-user-database"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/syscalls#e00e535b543a462f89ba77a935327328ad775161"
 
 [[package]]
 name = "mochios-user-protocol"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/syscalls#e00e535b543a462f89ba77a935327328ad775161"
+
+[[patch.unused]]
+name = "viewkit"
+version = "1.0.1"
+
+[[patch.unused]]
+name = "libc"
+version = "0.2.185"
+
+[[patch.unused]]
+name = "rustc-std-workspace-alloc"
+version = "1.99.0"
+
+[[patch.unused]]
+name = "rustc-std-workspace-core"
+version = "1.99.0"
+
+[[patch.unused]]
+name = "rustc-std-workspace-std"
+version = "1.99.0"
+
+[[patch.unused]]
+name = "viewkit"
+version = "1.0.1"
