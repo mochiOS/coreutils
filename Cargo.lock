@@ -24,7 +24,6 @@ source = "git+https://github.com/mochiOS/libc#d2072c233a70c5044bc9adc1d6c60cafc3
 [[package]]
 name = "mboot-protocol"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/mBoot?rev=54d223a845c0b97a9c5d6fc5c2908c04ffec1f68#54d223a845c0b97a9c5d6fc5c2908c04ffec1f68"
 
 [[package]]
 name = "mnu-abi"
