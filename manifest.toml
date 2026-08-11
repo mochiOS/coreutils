@@ -114,6 +114,18 @@ requires = [
 ]
 
 [[binary]]
+path = "/bin/gcc"
+capability_profile = "coreutils.gcc"
+kind = "application"
+requires = [
+    "developer.compile",
+    "fs.read.all",
+    "fs.write.tmp",
+    "fs.write.user",
+    "ipc.client",
+]
+
+[[binary]]
 path = "/bin/test_gui"
 capability_profile = "coreutils.test_gui"
 kind = "application"
