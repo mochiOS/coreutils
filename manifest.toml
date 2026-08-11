@@ -118,7 +118,6 @@ path = "/bin/gcc"
 capability_profile = "coreutils.gcc"
 kind = "application"
 requires = [
-    "developer.compile",
     "fs.read.all",
     "fs.write.tmp",
     "fs.write.user",
