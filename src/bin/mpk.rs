@@ -1,4 +1,5 @@
 use std::io;
+use std::path::{Path, PathBuf};
 
 use mochi_user_syscall as syscall;
 
@@ -21,6 +22,13 @@ fn find_package_service() -> io::Result<u64> {
         return Err(errno_io(libc::ENOENT as u64));
     }
     Ok(tid)
+}
+
+fn absolute_package_path(path: &Path) -> io::Result<PathBuf> {
+    if path.is_absolute() {
+        return Ok(path.to_path_buf());
+    }
+    Ok(std::env::current_dir()?.join(path))
 }
 
 fn install_via_package_service(mpkg_path: &str) -> io::Result<()> {
@@ -59,5 +67,34 @@ fn main() -> io::Result<()> {
         coreutils::usage("mpk", "PACKAGE.mpkg");
     }
 
-    install_via_package_service(&args[0].to_string_lossy())
+    let path = absolute_package_path(Path::new(&args[0]))?;
+    match install_via_package_service(&path.to_string_lossy()) {
+        Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+            eprintln!(
+                "mpk: Developer Trust or Revocation data is unavailable or expired; retry after update.service synchronizes"
+            );
+            Err(error)
+        }
+        result => result,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn absolute_package_path_preserves_absolute_input() {
+        let path = Path::new("/system/samples/example.mpkg");
+        assert_eq!(absolute_package_path(path).unwrap(), path);
+    }
+
+    #[test]
+    fn absolute_package_path_resolves_relative_input() {
+        let relative = Path::new("system/samples/example.mpkg");
+        assert_eq!(
+            absolute_package_path(relative).unwrap(),
+            std::env::current_dir().unwrap().join(relative)
+        );
+    }
 }
