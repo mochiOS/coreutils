@@ -68,6 +68,7 @@ fn main() -> io::Result<()> {
     }
 
     let path = absolute_package_path(Path::new(&args[0]))?;
+    println!("Installing {}...", path.display());
     match install_via_package_service(&path.to_string_lossy()) {
         Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
             eprintln!(
@@ -75,7 +76,11 @@ fn main() -> io::Result<()> {
             );
             Err(error)
         }
-        result => result,
+        Ok(()) => {
+            println!("Installation complete.");
+            Ok(())
+        }
+        Err(error) => Err(error),
     }
 }
 
