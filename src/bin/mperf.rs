@@ -2,8 +2,8 @@ use std::arch::x86_64::__cpuid;
 use std::io::{self, Write};
 
 use mnu_abi::performance::{
-    BootMilestone, CLOCK_SOURCE_CPUID_CRYSTAL, CLOCK_SOURCE_MBOOT, CounterMetric, GaugeMetric,
-    KernelPerformanceSnapshot, LatencyMetric,
+    AllocationSubsystem, BootMilestone, CLOCK_SOURCE_CPUID_CRYSTAL, CLOCK_SOURCE_MBOOT,
+    CounterMetric, GaugeMetric, HeapAllocationSizeClass, KernelPerformanceSnapshot, LatencyMetric,
 };
 use mochi_user_syscall::{self as syscall, SyscallNumber};
 
@@ -67,6 +67,25 @@ const BOOT_NAMES: [&str; BootMilestone::COUNT] = [
     "idle",
 ];
 
+const HEAP_SIZE_CLASS_NAMES: [&str; HeapAllocationSizeClass::COUNT] = [
+    "0_to_16", "17_to_64", "65_to_256", "257_to_1024", "1025_to_4096",
+    "4097_to_16384", "16385_to_65536", "65537_to_262144", "larger",
+];
+
+const ALLOCATION_SUBSYSTEM_NAMES: [&str; AllocationSubsystem::COUNT] = [
+    "other",
+    "scheduler",
+    "ipc",
+    "vfs",
+    "page_fault",
+    "network_receive",
+    "network_transmit",
+    "block_io",
+    "process_creation",
+    "thread_creation",
+    "syscall",
+];
+
 fn main() -> io::Result<()> {
     if !coreutils::args().is_empty() {
         coreutils::usage("mperf", "");
@@ -94,7 +113,7 @@ fn main() -> io::Result<()> {
 fn write_snapshot(output: &mut impl Write, snapshot: &KernelPerformanceSnapshot) -> io::Result<()> {
     let processor = processor_info();
     writeln!(output, "{{")?;
-    writeln!(output, "  \"format\": \"mnu-performance-v1\",")?;
+    writeln!(output, "  \"format\": \"mnu-performance-v2\",")?;
     write!(output, "  \"mnu_revision\": ")?;
     write_json_string(output, env!("MNU_GIT_REVISION"))?;
     writeln!(output, ",")?;
@@ -145,19 +164,81 @@ fn write_snapshot(output: &mut impl Write, snapshot: &KernelPerformanceSnapshot)
     )?;
     writeln!(
         output,
-        "    \"heap_capacity_bytes\": {}",
+        "    \"heap_capacity_bytes\": {},",
         snapshot.heap_capacity_bytes
+    )?;
+    writeln!(
+        output,
+        "    \"heap_committed_bytes\": {},",
+        snapshot.heap_committed_bytes
+    )?;
+    writeln!(
+        output,
+        "    \"heap_internal_fragmentation_bytes\": {{\"current\": {}, \"peak\": {}}}",
+        snapshot.heap_internal_fragmentation.current,
+        snapshot.heap_internal_fragmentation.peak
     )?;
     writeln!(output, "  }},")?;
     write_counters(output, snapshot)?;
     writeln!(output, ",")?;
     write_gauges(output, snapshot)?;
     writeln!(output, ",")?;
+    write_heap_allocations(output, snapshot)?;
+    writeln!(output, ",")?;
     write_latencies(output, snapshot)?;
     writeln!(output, ",")?;
     write_boot_timestamps(output, snapshot)?;
     writeln!(output)?;
     writeln!(output, "}}")
+}
+
+fn write_heap_allocations(
+    output: &mut impl Write,
+    snapshot: &KernelPerformanceSnapshot,
+) -> io::Result<()> {
+    writeln!(output, "  \"heap_allocations\": {{")?;
+    write_named_counts(
+        output,
+        "by_size_bytes",
+        &HEAP_SIZE_CLASS_NAMES,
+        &snapshot.heap_allocations_by_size,
+        true,
+    )?;
+    write!(output, "    \"by_cpu\": [")?;
+    for (index, count) in snapshot.heap_allocations_by_cpu.iter().enumerate() {
+        if index != 0 {
+            write!(output, ", ")?;
+        }
+        write!(output, "{count}")?;
+    }
+    writeln!(output, "],")?;
+    write_named_counts(
+        output,
+        "by_subsystem",
+        &ALLOCATION_SUBSYSTEM_NAMES,
+        &snapshot.heap_allocations_by_subsystem,
+        false,
+    )?;
+    write!(output, "  }}")
+}
+
+fn write_named_counts<const N: usize>(
+    output: &mut impl Write,
+    group: &str,
+    names: &[&str; N],
+    counts: &[u64; N],
+    trailing_comma: bool,
+) -> io::Result<()> {
+    writeln!(output, "    \"{group}\": {{")?;
+    for (index, name) in names.iter().enumerate() {
+        let suffix = if index + 1 == N { "" } else { "," };
+        writeln!(output, "      \"{name}\": {}{suffix}", counts[index])?;
+    }
+    writeln!(
+        output,
+        "    }}{}",
+        if trailing_comma { "," } else { "" }
+    )
 }
 
 fn write_counters(output: &mut impl Write, snapshot: &KernelPerformanceSnapshot) -> io::Result<()> {
@@ -358,6 +439,8 @@ mod tests {
         assert!(output.contains("\"mean_cycles\": 200"));
         assert!(output.contains("\"p99_ns\": 200"));
         assert!(output.contains("\"heap_live_bytes\""));
+        assert!(output.contains("\"by_subsystem\""));
+        assert!(output.contains("\"heap_committed_bytes\""));
         assert!(output.contains("\"mnu_entry\""));
     }
 
