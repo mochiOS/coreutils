@@ -140,6 +140,11 @@ fn write_snapshot(output: &mut impl Write, snapshot: &KernelPerformanceSnapshot)
     writeln!(output, "    \"free_frames\": {},", snapshot.free_frames)?;
     writeln!(
         output,
+        "    \"kernel_stack_high_water_bytes\": {},",
+        snapshot.kernel_stack_high_water_bytes
+    )?;
+    writeln!(
+        output,
         "    \"heap_capacity_bytes\": {}",
         snapshot.heap_capacity_bytes
     )?;
