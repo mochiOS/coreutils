@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "mboot-protocol",
+ "mnu-abi",
  "mochi-user-platform",
  "mochi-user-syscall",
  "mochios-capability-protocol",

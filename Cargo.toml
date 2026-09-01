@@ -8,6 +8,7 @@ edition = "2024"
 [dependencies]
 libc = { git = "https://github.com/mochiOS/libc", package = "libc" }
 mboot-protocol = { git = "https://github.com/mochiOS/mBoot", rev = "54d223a845c0b97a9c5d6fc5c2908c04ffec1f68", package = "mboot-protocol" }
+mnu-abi = { git = "https://github.com/mochiOS/mnu", package = "mnu-abi" }
 mochi-user-platform = { git = "https://github.com/mochiOS/syscalls", package = "mochi-user-platform", default-features = false, features = ["std"] }
 mochi-user-syscall = { git = "https://github.com/mochiOS/syscalls", package = "mochi-user-syscall" }
 mochios-capability-protocol = { git = "https://github.com/mochiOS/syscalls", package = "mochios-capability-protocol" }

@@ -114,6 +114,14 @@ requires = [
 ]
 
 [[binary]]
+path = "/bin/mperf"
+capability_profile = "coreutils.mperf"
+kind = "application"
+requires = [
+    "developer.profile",
+]
+
+[[binary]]
 path = "/bin/gcc"
 capability_profile = "coreutils.gcc"
 kind = "application"
