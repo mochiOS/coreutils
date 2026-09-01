@@ -3,7 +3,8 @@ use std::io::{self, Write};
 
 use mnu_abi::performance::{
     AllocationSubsystem, BootMilestone, CLOCK_SOURCE_CPUID_CRYSTAL, CLOCK_SOURCE_MBOOT,
-    CounterMetric, GaugeMetric, HeapAllocationSizeClass, KernelPerformanceSnapshot, LatencyMetric,
+    CounterMetric, FrameAllocationFailure, GaugeMetric, HeapAllocationSizeClass,
+    KernelPerformanceSnapshot, LatencyMetric,
 };
 use mochi_user_syscall::{self as syscall, SyscallNumber};
 
@@ -68,8 +69,15 @@ const BOOT_NAMES: [&str; BootMilestone::COUNT] = [
 ];
 
 const HEAP_SIZE_CLASS_NAMES: [&str; HeapAllocationSizeClass::COUNT] = [
-    "0_to_16", "17_to_64", "65_to_256", "257_to_1024", "1025_to_4096",
-    "4097_to_16384", "16385_to_65536", "65537_to_262144", "larger",
+    "0_to_16",
+    "17_to_64",
+    "65_to_256",
+    "257_to_1024",
+    "1025_to_4096",
+    "4097_to_16384",
+    "16385_to_65536",
+    "65537_to_262144",
+    "larger",
 ];
 
 const ALLOCATION_SUBSYSTEM_NAMES: [&str; AllocationSubsystem::COUNT] = [
@@ -84,6 +92,13 @@ const ALLOCATION_SUBSYSTEM_NAMES: [&str; AllocationSubsystem::COUNT] = [
     "process_creation",
     "thread_creation",
     "syscall",
+];
+
+const FRAME_FAILURE_NAMES: [&str; FrameAllocationFailure::COUNT] = [
+    "allocator_unavailable",
+    "exhausted",
+    "invalid_contiguous_request",
+    "contiguous_unavailable",
 ];
 
 fn main() -> io::Result<()> {
@@ -113,7 +128,7 @@ fn main() -> io::Result<()> {
 fn write_snapshot(output: &mut impl Write, snapshot: &KernelPerformanceSnapshot) -> io::Result<()> {
     let processor = processor_info();
     writeln!(output, "{{")?;
-    writeln!(output, "  \"format\": \"mnu-performance-v2\",")?;
+    writeln!(output, "  \"format\": \"mnu-performance-v3\",")?;
     write!(output, "  \"mnu_revision\": ")?;
     write_json_string(output, env!("MNU_GIT_REVISION"))?;
     writeln!(output, ",")?;
@@ -175,8 +190,7 @@ fn write_snapshot(output: &mut impl Write, snapshot: &KernelPerformanceSnapshot)
     writeln!(
         output,
         "    \"heap_internal_fragmentation_bytes\": {{\"current\": {}, \"peak\": {}}}",
-        snapshot.heap_internal_fragmentation.current,
-        snapshot.heap_internal_fragmentation.peak
+        snapshot.heap_internal_fragmentation.current, snapshot.heap_internal_fragmentation.peak
     )?;
     writeln!(output, "  }},")?;
     write_counters(output, snapshot)?;
@@ -185,11 +199,45 @@ fn write_snapshot(output: &mut impl Write, snapshot: &KernelPerformanceSnapshot)
     writeln!(output, ",")?;
     write_heap_allocations(output, snapshot)?;
     writeln!(output, ",")?;
+    write_frame_allocator(output, snapshot)?;
+    writeln!(output, ",")?;
     write_latencies(output, snapshot)?;
     writeln!(output, ",")?;
     write_boot_timestamps(output, snapshot)?;
     writeln!(output)?;
     writeln!(output, "}}")
+}
+
+fn write_frame_allocator(
+    output: &mut impl Write,
+    snapshot: &KernelPerformanceSnapshot,
+) -> io::Result<()> {
+    let frame = &snapshot.frame_allocator;
+    writeln!(output, "  \"frame_allocator\": {{")?;
+    writeln!(output, "    \"requests\": {},", frame.requests)?;
+    writeln!(output, "    \"free_list_hits\": {},", frame.free_list_hits)?;
+    writeln!(output, "    \"bump_hits\": {},", frame.bump_hits)?;
+    writeln!(
+        output,
+        "    \"contiguous_requests\": {},",
+        frame.contiguous_requests
+    )?;
+    writeln!(
+        output,
+        "    \"memory_map_regions_examined\": {},",
+        frame.memory_map_regions_examined
+    )?;
+    writeln!(output, "    \"zero_calls\": {},", frame.zero_calls)?;
+    writeln!(output, "    \"zero_bytes\": {},", frame.zero_bytes)?;
+    writeln!(output, "    \"zero_cycles\": {},", frame.zero_cycles)?;
+    write_named_counts(
+        output,
+        "failures",
+        &FRAME_FAILURE_NAMES,
+        &frame.failures,
+        false,
+    )?;
+    write!(output, "  }}")
 }
 
 fn write_heap_allocations(
@@ -234,11 +282,7 @@ fn write_named_counts<const N: usize>(
         let suffix = if index + 1 == N { "" } else { "," };
         writeln!(output, "      \"{name}\": {}{suffix}", counts[index])?;
     }
-    writeln!(
-        output,
-        "    }}{}",
-        if trailing_comma { "," } else { "" }
-    )
+    writeln!(output, "    }}{}", if trailing_comma { "," } else { "" })
 }
 
 fn write_counters(output: &mut impl Write, snapshot: &KernelPerformanceSnapshot) -> io::Result<()> {
@@ -441,6 +485,9 @@ mod tests {
         assert!(output.contains("\"heap_live_bytes\""));
         assert!(output.contains("\"by_subsystem\""));
         assert!(output.contains("\"heap_committed_bytes\""));
+        assert!(output.contains("\"frame_allocator\""));
+        assert!(output.contains("\"memory_map_regions_examined\""));
+        assert!(output.contains("\"contiguous_unavailable\""));
         assert!(output.contains("\"mnu_entry\""));
     }
 
