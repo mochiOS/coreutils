@@ -4,7 +4,7 @@ use std::io::{self, Write};
 use mnu_abi::performance::{
     AllocationSubsystem, BootMilestone, CounterMetric, DistributionSnapshot,
     FrameAllocationFailure, GaugeMetric, HeapAllocationSizeClass, KernelPerformanceSnapshot,
-    LatencyMetric, CLOCK_SOURCE_CPUID_CRYSTAL, CLOCK_SOURCE_MBOOT,
+    LatencyMetric, CLOCK_SOURCE_CPUID_CRYSTAL, CLOCK_SOURCE_HYPERVISOR,
 };
 use mochi_user_syscall::{self as syscall, SyscallNumber};
 
@@ -508,7 +508,7 @@ fn write_nanoseconds(output: &mut impl Write, cycles: u64, frequency_khz: u64) -
 
 fn clock_source(source: u32) -> &'static str {
     match source {
-        CLOCK_SOURCE_MBOOT => "mboot",
+        CLOCK_SOURCE_HYPERVISOR => "hypervisor",
         CLOCK_SOURCE_CPUID_CRYSTAL => "cpuid-crystal",
         _ => "unavailable",
     }
