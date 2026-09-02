@@ -2,9 +2,9 @@ use std::arch::x86_64::__cpuid;
 use std::io::{self, Write};
 
 use mnu_abi::performance::{
-    AllocationSubsystem, BootMilestone, CLOCK_SOURCE_CPUID_CRYSTAL, CLOCK_SOURCE_MBOOT,
-    CounterMetric, DistributionSnapshot, FrameAllocationFailure, GaugeMetric,
-    HeapAllocationSizeClass, KernelPerformanceSnapshot, LatencyMetric,
+    AllocationSubsystem, BootMilestone, CounterMetric, DistributionSnapshot,
+    FrameAllocationFailure, GaugeMetric, HeapAllocationSizeClass, KernelPerformanceSnapshot,
+    LatencyMetric, CLOCK_SOURCE_CPUID_CRYSTAL, CLOCK_SOURCE_MBOOT,
 };
 use mochi_user_syscall::{self as syscall, SyscallNumber};
 
@@ -128,7 +128,7 @@ fn main() -> io::Result<()> {
 fn write_snapshot(output: &mut impl Write, snapshot: &KernelPerformanceSnapshot) -> io::Result<()> {
     let processor = processor_info();
     writeln!(output, "{{")?;
-    writeln!(output, "  \"format\": \"mnu-performance-v4\",")?;
+    writeln!(output, "  \"format\": \"mnu-performance-v5\",")?;
     write!(output, "  \"mnu_revision\": ")?;
     write_json_string(output, env!("MNU_GIT_REVISION"))?;
     writeln!(output, ",")?;
@@ -257,6 +257,33 @@ fn write_frame_allocator(
         "failures",
         &FRAME_FAILURE_NAMES,
         &frame.failures,
+        true,
+    )?;
+    write_cpu_counts(
+        output,
+        "allocated_pages_by_cpu",
+        &snapshot.frame_activity.allocated_pages_by_cpu,
+        true,
+    )?;
+    write_named_counts(
+        output,
+        "allocated_pages_by_subsystem",
+        &ALLOCATION_SUBSYSTEM_NAMES,
+        &snapshot.frame_activity.allocated_pages_by_subsystem,
+        true,
+    )?;
+    write_named_counts(
+        output,
+        "zero_calls_by_subsystem",
+        &ALLOCATION_SUBSYSTEM_NAMES,
+        &snapshot.frame_activity.zero_calls_by_subsystem,
+        true,
+    )?;
+    write_named_counts(
+        output,
+        "zero_cycles_by_subsystem",
+        &ALLOCATION_SUBSYSTEM_NAMES,
+        &snapshot.frame_activity.zero_cycles_by_subsystem,
         false,
     )?;
     write!(output, "  }}")
@@ -274,14 +301,7 @@ fn write_heap_allocations(
         &snapshot.heap_allocations_by_size,
         true,
     )?;
-    write!(output, "    \"by_cpu\": [")?;
-    for (index, count) in snapshot.heap_allocations_by_cpu.iter().enumerate() {
-        if index != 0 {
-            write!(output, ", ")?;
-        }
-        write!(output, "{count}")?;
-    }
-    writeln!(output, "],")?;
+    write_cpu_counts(output, "by_cpu", &snapshot.heap_allocations_by_cpu, true)?;
     write_named_counts(
         output,
         "by_subsystem",
@@ -290,6 +310,22 @@ fn write_heap_allocations(
         false,
     )?;
     write!(output, "  }}")
+}
+
+fn write_cpu_counts<const N: usize>(
+    output: &mut impl Write,
+    group: &str,
+    counts: &[u64; N],
+    trailing_comma: bool,
+) -> io::Result<()> {
+    write!(output, "    \"{group}\": [")?;
+    for (index, count) in counts.iter().enumerate() {
+        if index != 0 {
+            write!(output, ", ")?;
+        }
+        write!(output, "{count}")?;
+    }
+    writeln!(output, "]{}", if trailing_comma { "," } else { "" })
 }
 
 fn write_named_counts<const N: usize>(
@@ -521,6 +557,8 @@ mod tests {
         assert!(output.contains("\"memory_map_regions_examined\""));
         assert!(output.contains("\"lock_wait\""));
         assert!(output.contains("\"largest_contiguous_pages\""));
+        assert!(output.contains("\"allocated_pages_by_cpu\""));
+        assert!(output.contains("\"zero_cycles_by_subsystem\""));
         assert!(output.contains("\"contiguous_unavailable\""));
         assert!(output.contains("\"mnu_entry\""));
     }
