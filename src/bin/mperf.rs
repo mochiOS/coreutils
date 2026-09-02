@@ -128,7 +128,7 @@ fn main() -> io::Result<()> {
 fn write_snapshot(output: &mut impl Write, snapshot: &KernelPerformanceSnapshot) -> io::Result<()> {
     let processor = processor_info();
     writeln!(output, "{{")?;
-    writeln!(output, "  \"format\": \"mnu-performance-v6\",")?;
+    writeln!(output, "  \"format\": \"mnu-performance-v7\",")?;
     write!(output, "  \"mnu_revision\": ")?;
     write_json_string(output, env!("MNU_GIT_REVISION"))?;
     writeln!(output, ",")?;
@@ -203,11 +203,77 @@ fn write_snapshot(output: &mut impl Write, snapshot: &KernelPerformanceSnapshot)
     writeln!(output, ",")?;
     write_timer_activity(output, snapshot)?;
     writeln!(output, ",")?;
+    write_vfs_activity(output, snapshot)?;
+    writeln!(output, ",")?;
     write_latencies(output, snapshot)?;
     writeln!(output, ",")?;
     write_boot_timestamps(output, snapshot)?;
     writeln!(output)?;
     writeln!(output, "}}")
+}
+
+fn write_vfs_activity(
+    output: &mut impl Write,
+    snapshot: &KernelPerformanceSnapshot,
+) -> io::Result<()> {
+    let activity = snapshot.vfs_activity;
+    writeln!(output, "  \"vfs\": {{")?;
+    writeln!(
+        output,
+        "    \"metadata_queries\": {},",
+        activity.metadata_queries
+    )?;
+    writeln!(
+        output,
+        "    \"read_range_calls\": {},",
+        activity.read_range_calls
+    )?;
+    writeln!(
+        output,
+        "    \"write_range_calls\": {},",
+        activity.write_range_calls
+    )?;
+    writeln!(
+        output,
+        "    \"read_requested_bytes\": {},",
+        activity.read_requested_bytes
+    )?;
+    writeln!(
+        output,
+        "    \"read_transferred_bytes\": {},",
+        activity.read_transferred_bytes
+    )?;
+    writeln!(
+        output,
+        "    \"write_requested_bytes\": {},",
+        activity.write_requested_bytes
+    )?;
+    writeln!(
+        output,
+        "    \"write_transferred_bytes\": {},",
+        activity.write_transferred_bytes
+    )?;
+    writeln!(
+        output,
+        "    \"temporary_buffer_allocations\": {},",
+        activity.temporary_buffer_allocations
+    )?;
+    writeln!(
+        output,
+        "    \"temporary_buffer_bytes\": {},",
+        activity.temporary_buffer_bytes
+    )?;
+    writeln!(
+        output,
+        "    \"path_clone_allocations\": {},",
+        activity.path_clone_allocations
+    )?;
+    writeln!(
+        output,
+        "    \"path_clone_bytes\": {}",
+        activity.path_clone_bytes
+    )?;
+    write!(output, "  }}")
 }
 
 fn write_timer_activity(
@@ -608,6 +674,9 @@ mod tests {
         assert!(output.contains("\"allocated_pages_by_cpu\""));
         assert!(output.contains("\"zero_cycles_by_subsystem\""));
         assert!(output.contains("\"timer\""));
+        assert!(output.contains("\"vfs\""));
+        assert!(output.contains("\"temporary_buffer_allocations\""));
+        assert!(output.contains("\"path_clone_bytes\""));
         assert!(output.contains("\"sleep_queue_housekeeping\""));
         assert!(output.contains("\"futex_timeout_full_scans\""));
         assert!(output.contains("\"contiguous_unavailable\""));
