@@ -3,8 +3,8 @@ use std::io::{self, Write};
 
 use mnu_abi::performance::{
     AllocationSubsystem, BootMilestone, CLOCK_SOURCE_CPUID_CRYSTAL, CLOCK_SOURCE_MBOOT,
-    CounterMetric, FrameAllocationFailure, GaugeMetric, HeapAllocationSizeClass,
-    KernelPerformanceSnapshot, LatencyMetric,
+    CounterMetric, DistributionSnapshot, FrameAllocationFailure, GaugeMetric,
+    HeapAllocationSizeClass, KernelPerformanceSnapshot, LatencyMetric,
 };
 use mochi_user_syscall::{self as syscall, SyscallNumber};
 
@@ -128,7 +128,7 @@ fn main() -> io::Result<()> {
 fn write_snapshot(output: &mut impl Write, snapshot: &KernelPerformanceSnapshot) -> io::Result<()> {
     let processor = processor_info();
     writeln!(output, "{{")?;
-    writeln!(output, "  \"format\": \"mnu-performance-v3\",")?;
+    writeln!(output, "  \"format\": \"mnu-performance-v4\",")?;
     write!(output, "  \"mnu_revision\": ")?;
     write_json_string(output, env!("MNU_GIT_REVISION"))?;
     writeln!(output, ",")?;
@@ -230,6 +230,28 @@ fn write_frame_allocator(
     writeln!(output, "    \"zero_calls\": {},", frame.zero_calls)?;
     writeln!(output, "    \"zero_bytes\": {},", frame.zero_bytes)?;
     writeln!(output, "    \"zero_cycles\": {},", frame.zero_cycles)?;
+    writeln!(
+        output,
+        "    \"bump_free_pages\": {},",
+        snapshot.frame_fragmentation.bump_free_pages
+    )?;
+    writeln!(
+        output,
+        "    \"recycled_pages\": {},",
+        snapshot.frame_fragmentation.recycled_pages
+    )?;
+    writeln!(
+        output,
+        "    \"largest_contiguous_pages\": {},",
+        snapshot.frame_fragmentation.largest_contiguous_pages
+    )?;
+    write_latency(
+        output,
+        "lock_wait",
+        snapshot.frame_allocator_lock_wait,
+        snapshot.tsc_frequency_khz,
+        true,
+    )?;
     write_named_counts(
         output,
         "failures",
@@ -326,30 +348,40 @@ fn write_latencies(
 ) -> io::Result<()> {
     writeln!(output, "  \"latencies\": {{")?;
     for (index, name) in LATENCY_NAMES.iter().enumerate() {
-        let latency = snapshot.latencies[index];
-        let mean = latency.sum_cycles.checked_div(latency.count).unwrap_or(0);
-        let suffix = if index + 1 == LATENCY_NAMES.len() {
-            ""
-        } else {
-            ","
-        };
-        write!(
+        write_latency(
             output,
-            "    \"{name}\": {{\"count\": {}, \"mean_cycles\": {mean}, \"p50_cycles\": {}, \"p95_cycles\": {}, \"p99_cycles\": {}, \"max_cycles\": {}, \"p50_ns\": ",
-            latency.count,
-            latency.p50_cycles,
-            latency.p95_cycles,
-            latency.p99_cycles,
-            latency.max_cycles,
+            name,
+            snapshot.latencies[index],
+            snapshot.tsc_frequency_khz,
+            index + 1 != LATENCY_NAMES.len(),
         )?;
-        write_nanoseconds(output, latency.p50_cycles, snapshot.tsc_frequency_khz)?;
-        write!(output, ", \"p95_ns\": ")?;
-        write_nanoseconds(output, latency.p95_cycles, snapshot.tsc_frequency_khz)?;
-        write!(output, ", \"p99_ns\": ")?;
-        write_nanoseconds(output, latency.p99_cycles, snapshot.tsc_frequency_khz)?;
-        writeln!(output, "}}{suffix}")?;
     }
     write!(output, "  }}")
+}
+
+fn write_latency(
+    output: &mut impl Write,
+    name: &str,
+    latency: DistributionSnapshot,
+    tsc_frequency_khz: u64,
+    trailing_comma: bool,
+) -> io::Result<()> {
+    let mean = latency.sum_cycles.checked_div(latency.count).unwrap_or(0);
+    write!(
+        output,
+        "    \"{name}\": {{\"count\": {}, \"mean_cycles\": {mean}, \"p50_cycles\": {}, \"p95_cycles\": {}, \"p99_cycles\": {}, \"max_cycles\": {}, \"p50_ns\": ",
+        latency.count,
+        latency.p50_cycles,
+        latency.p95_cycles,
+        latency.p99_cycles,
+        latency.max_cycles,
+    )?;
+    write_nanoseconds(output, latency.p50_cycles, tsc_frequency_khz)?;
+    write!(output, ", \"p95_ns\": ")?;
+    write_nanoseconds(output, latency.p95_cycles, tsc_frequency_khz)?;
+    write!(output, ", \"p99_ns\": ")?;
+    write_nanoseconds(output, latency.p99_cycles, tsc_frequency_khz)?;
+    writeln!(output, "}}{}", if trailing_comma { "," } else { "" })
 }
 
 fn write_boot_timestamps(
@@ -487,6 +519,8 @@ mod tests {
         assert!(output.contains("\"heap_committed_bytes\""));
         assert!(output.contains("\"frame_allocator\""));
         assert!(output.contains("\"memory_map_regions_examined\""));
+        assert!(output.contains("\"lock_wait\""));
+        assert!(output.contains("\"largest_contiguous_pages\""));
         assert!(output.contains("\"contiguous_unavailable\""));
         assert!(output.contains("\"mnu_entry\""));
     }
