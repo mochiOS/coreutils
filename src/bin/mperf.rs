@@ -128,7 +128,7 @@ fn main() -> io::Result<()> {
 fn write_snapshot(output: &mut impl Write, snapshot: &KernelPerformanceSnapshot) -> io::Result<()> {
     let processor = processor_info();
     writeln!(output, "{{")?;
-    writeln!(output, "  \"format\": \"mnu-performance-v5\",")?;
+    writeln!(output, "  \"format\": \"mnu-performance-v6\",")?;
     write!(output, "  \"mnu_revision\": ")?;
     write_json_string(output, env!("MNU_GIT_REVISION"))?;
     writeln!(output, ",")?;
@@ -201,11 +201,59 @@ fn write_snapshot(output: &mut impl Write, snapshot: &KernelPerformanceSnapshot)
     writeln!(output, ",")?;
     write_frame_allocator(output, snapshot)?;
     writeln!(output, ",")?;
+    write_timer_activity(output, snapshot)?;
+    writeln!(output, ",")?;
     write_latencies(output, snapshot)?;
     writeln!(output, ",")?;
     write_boot_timestamps(output, snapshot)?;
     writeln!(output)?;
     writeln!(output, "}}")
+}
+
+fn write_timer_activity(
+    output: &mut impl Write,
+    snapshot: &KernelPerformanceSnapshot,
+) -> io::Result<()> {
+    let sleep = snapshot.timer_activity.sleep_queue;
+    let futex = snapshot.timer_activity.futex_timeout_queue;
+    writeln!(output, "  \"timer\": {{")?;
+    write_latency(
+        output,
+        "sleep_queue_housekeeping",
+        sleep.housekeeping,
+        snapshot.tsc_frequency_khz,
+        true,
+    )?;
+    writeln!(output, "    \"sleep_queue_full_scans\": {},", sleep.full_scans)?;
+    writeln!(
+        output,
+        "    \"sleep_queue_skipped_checks\": {},",
+        sleep.skipped_checks
+    )?;
+    writeln!(output, "    \"sleep_queue_wakeups\": {},", sleep.wakeups)?;
+    write_latency(
+        output,
+        "futex_timeout_housekeeping",
+        futex.housekeeping,
+        snapshot.tsc_frequency_khz,
+        true,
+    )?;
+    writeln!(
+        output,
+        "    \"futex_timeout_full_scans\": {},",
+        futex.full_scans
+    )?;
+    writeln!(
+        output,
+        "    \"futex_timeout_skipped_checks\": {},",
+        futex.skipped_checks
+    )?;
+    writeln!(
+        output,
+        "    \"futex_timeout_wakeups\": {}",
+        futex.wakeups
+    )?;
+    write!(output, "  }}")
 }
 
 fn write_frame_allocator(
@@ -559,6 +607,9 @@ mod tests {
         assert!(output.contains("\"largest_contiguous_pages\""));
         assert!(output.contains("\"allocated_pages_by_cpu\""));
         assert!(output.contains("\"zero_cycles_by_subsystem\""));
+        assert!(output.contains("\"timer\""));
+        assert!(output.contains("\"sleep_queue_housekeeping\""));
+        assert!(output.contains("\"futex_timeout_full_scans\""));
         assert!(output.contains("\"contiguous_unavailable\""));
         assert!(output.contains("\"mnu_entry\""));
     }
