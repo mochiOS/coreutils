@@ -41,7 +41,6 @@ dependencies = [
 [[package]]
 name = "mochi-user-syscall"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/syscalls#a0f3d099705c5cc9c1474e3e7f68c36a481e6148"
 dependencies = [
  "mnu-abi",
 ]
@@ -69,6 +68,10 @@ name = "viewkit"
 version = "2.0.0"
 
 [[patch.unused]]
+name = "mochios-mdriver-protocol"
+version = "0.1.0"
+
+[[patch.unused]]
 name = "rustc-std-workspace-alloc"
 version = "1.99.0"
 
@@ -79,6 +82,22 @@ version = "1.99.0"
 [[patch.unused]]
 name = "viewkit"
 version = "2.0.0"
+
+[[patch.unused]]
+name = "mochios-linux-gui-protocol"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "mochios-linux-portal-protocol"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "mochios-signature-protocol"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "mochios-tls-client"
+version = "0.1.0"
 
 [[patch.unused]]
 name = "mochios-viewkit-gpu-protocol"
