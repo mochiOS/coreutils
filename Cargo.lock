@@ -48,7 +48,6 @@ dependencies = [
 [[package]]
 name = "mochios-capability-protocol"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/syscalls#a0f3d099705c5cc9c1474e3e7f68c36a481e6148"
 
 [[package]]
 name = "mochios-net-device-protocol"

@@ -5,6 +5,41 @@ use mochi_user_syscall as syscall;
 
 const PACKAGE_SERVICE_NAME: &str = "package.service";
 const INSTALL_REQUEST_OPCODE: u32 = 0x494e_5354;
+const UPDATE_REQUEST_OPCODE: u32 = 0x5550_4454;
+const REMOVE_REQUEST_OPCODE: u32 = 0x524d_4f56;
+
+#[derive(Clone, Copy)]
+enum Mutation {
+    Install,
+    Update,
+    Remove,
+}
+
+impl Mutation {
+    const fn opcode(self) -> u32 {
+        match self {
+            Self::Install => INSTALL_REQUEST_OPCODE,
+            Self::Update => UPDATE_REQUEST_OPCODE,
+            Self::Remove => REMOVE_REQUEST_OPCODE,
+        }
+    }
+
+    const fn present_participle(self) -> &'static str {
+        match self {
+            Self::Install => "Installing",
+            Self::Update => "Updating",
+            Self::Remove => "Removing",
+        }
+    }
+
+    const fn completion(self) -> &'static str {
+        match self {
+            Self::Install => "Installation complete.",
+            Self::Update => "Update complete.",
+            Self::Remove => "Removal complete.",
+        }
+    }
+}
 
 fn errno_io(errno: u64) -> io::Error {
     io::Error::from_raw_os_error(errno as i32)
@@ -31,14 +66,16 @@ fn absolute_package_path(path: &Path) -> io::Result<PathBuf> {
     Ok(std::env::current_dir()?.join(path))
 }
 
-fn install_via_package_service(mpkg_path: &str) -> io::Result<()> {
-    if !mpkg_path.starts_with('/') || mpkg_path.as_bytes().contains(&0) {
+fn mutate_via_package_service(mutation: Mutation, subject: &str) -> io::Result<()> {
+    if subject.as_bytes().contains(&0)
+        || (!matches!(mutation, Mutation::Remove) && !subject.starts_with('/'))
+    {
         return Err(errno_io(libc::EINVAL as u64));
     }
     let service_tid = find_package_service()?;
-    let mut request = Vec::with_capacity(4 + mpkg_path.len());
-    request.extend_from_slice(&INSTALL_REQUEST_OPCODE.to_le_bytes());
-    request.extend_from_slice(mpkg_path.as_bytes());
+    let mut request = Vec::with_capacity(4 + subject.len());
+    request.extend_from_slice(&mutation.opcode().to_le_bytes());
+    request.extend_from_slice(subject.as_bytes());
     let mut reply = [0u8; 8];
     let msg = syscall::call5(
         syscall::SyscallNumber::IpcCall,
@@ -63,13 +100,26 @@ fn install_via_package_service(mpkg_path: &str) -> io::Result<()> {
 
 fn main() -> io::Result<()> {
     let args = coreutils::args();
-    if args.len() != 1 {
-        coreutils::usage("mpk", "PACKAGE.mpkg");
-    }
+    let (mutation, package) = match args.as_slice() {
+        [package] => (Mutation::Install, package.as_os_str()),
+        [command, package] if command == "install" => (Mutation::Install, package.as_os_str()),
+        [command, package] if command == "update" => (Mutation::Update, package.as_os_str()),
+        [command, package] if command == "remove" => (Mutation::Remove, package.as_os_str()),
+        _ => coreutils::usage("mpk", "[install|update] PACKAGE.mpkg | remove PACKAGE_ID"),
+    };
+    let package = package
+        .to_str()
+        .ok_or_else(|| errno_io(libc::EINVAL as u64))?;
 
-    let path = absolute_package_path(Path::new(&args[0]))?;
-    println!("Installing {}...", path.display());
-    match install_via_package_service(&path.to_string_lossy()) {
+    let subject = if matches!(mutation, Mutation::Remove) {
+        package.to_string()
+    } else {
+        absolute_package_path(Path::new(package))?
+            .to_string_lossy()
+            .into_owned()
+    };
+    println!("{} {}...", mutation.present_participle(), subject);
+    match mutate_via_package_service(mutation, &subject) {
         Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
             eprintln!(
                 "mpk: Developer Trust or Revocation data is unavailable or expired; retry after update.service synchronizes"
@@ -77,7 +127,7 @@ fn main() -> io::Result<()> {
             Err(error)
         }
         Ok(()) => {
-            println!("Installation complete.");
+            println!("{}", mutation.completion());
             Ok(())
         }
         Err(error) => Err(error),
