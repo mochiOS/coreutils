@@ -16,7 +16,7 @@ const VERIFY_PASS_PATH: &str = "/tmp/ext2-write-verify.pass";
 const NAMESPACE_DIR: &str = "/tmp/ext2-write-namespace";
 const BLOCK_SIZE: usize = 4096;
 const SINGLE_INDIRECT_FILE_LEN: usize = 13 * BLOCK_SIZE;
-const MAX_WRITABLE_SIZE: u64 = (12 + BLOCK_SIZE / 4) as u64 * BLOCK_SIZE as u64;
+const MAX_WRITABLE_SIZE: u64 = u32::MAX as u64;
 const PERSISTED: &[u8] = b"persistent-ext2\n";
 
 fn require(condition: bool, message: &str) -> io::Result<()> {
@@ -260,7 +260,7 @@ fn verify_errors() -> io::Result<()> {
         .truncate(true)
         .open(LIMIT_PATH)?;
     file.seek(SeekFrom::Start(MAX_WRITABLE_SIZE))?;
-    expect_errno(file.write_all(b"x"), 27, "single indirect limit")?;
+    expect_errno(file.write_all(b"x"), 27, "ext2 file size limit")?;
     file.seek(SeekFrom::Start(0))?;
     expect_errno(
         file.seek(SeekFrom::Current(-1)).map(|_| ()),
@@ -335,6 +335,7 @@ fn verify_enospc() -> io::Result<()> {
         )));
     }
     println!("selftest-ext2-write: pass enospc");
+    eprintln!("selftest-ext2-write: pass enospc");
     Ok(())
 }
 
@@ -365,11 +366,11 @@ fn main() {
         _ => prepare(),
     };
     if let Err(error) = result {
-        eprintln!("selftest-ext2-write: {error}");
+        eprintln!("selftest-ext2-write: FAIL {error}");
         std::process::exit(1);
     }
     if fs::metadata(ENOSPC_MODE_PATH).is_err() {
-        println!(
+        eprintln!(
             "selftest-ext2-write: pass {}",
             if fs::metadata(VERIFY_PASS_PATH).is_ok() {
                 "verify"
