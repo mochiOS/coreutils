@@ -175,3 +175,12 @@ requires = [
     "fs.read.tmp",
     "fs.write.tmp",
 ]
+
+[[binary]]
+path = "/bin/selftest-system-layout"
+capability_profile = "coreutils.selftest-system-layout"
+kind = "application"
+requires = [
+    "fs.read.all",
+    "fs.write.all",
+]
