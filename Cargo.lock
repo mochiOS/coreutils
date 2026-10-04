@@ -20,22 +20,18 @@ dependencies = [
 [[package]]
 name = "libc"
 version = "0.2.190"
-source = "git+https://github.com/mochiOS/libc#21e914d3ed41a3b44b486b8f30424e55d22bbdca"
 
 [[package]]
 name = "mboot-protocol"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/mBoot?rev=54d223a845c0b97a9c5d6fc5c2908c04ffec1f68#54d223a845c0b97a9c5d6fc5c2908c04ffec1f68"
 
 [[package]]
 name = "mnu-abi"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/mnu#829522f5737b96a50140961cdede28451805ad51"
 
 [[package]]
 name = "mochi-user-platform"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/syscalls#49f2103e4dfa44caf331b6eaf426e4e5175b45a9"
 dependencies = [
  "mnu-abi",
  "mochi-user-syscall",
@@ -46,7 +42,6 @@ dependencies = [
 [[package]]
 name = "mochi-user-syscall"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/syscalls#49f2103e4dfa44caf331b6eaf426e4e5175b45a9"
 dependencies = [
  "mnu-abi",
 ]
@@ -54,7 +49,6 @@ dependencies = [
 [[package]]
 name = "mochios-capability-protocol"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/syscalls#49f2103e4dfa44caf331b6eaf426e4e5175b45a9"
 
 [[package]]
 name = "mochios-net-device-protocol"
@@ -64,14 +58,55 @@ source = "git+https://github.com/mochiOS/syscalls#49f2103e4dfa44caf331b6eaf426e4
 [[package]]
 name = "mochios-user-database"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/syscalls#49f2103e4dfa44caf331b6eaf426e4e5175b45a9"
 
 [[package]]
 name = "mochios-user-protocol"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/syscalls#49f2103e4dfa44caf331b6eaf426e4e5175b45a9"
 
 [[package]]
 name = "mochios-workspace-protocol"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/syscalls#49f2103e4dfa44caf331b6eaf426e4e5175b45a9"
+
+[[patch.unused]]
+name = "viewkit"
+version = "2.0.0"
+
+[[patch.unused]]
+name = "mochios-mdriver-protocol"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "rustc-std-workspace-alloc"
+version = "1.99.0"
+
+[[patch.unused]]
+name = "rustc-std-workspace-std"
+version = "1.99.0"
+
+[[patch.unused]]
+name = "viewkit"
+version = "2.0.0"
+
+[[patch.unused]]
+name = "mochios-linux-gui-protocol"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "mochios-linux-portal-protocol"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "mochios-signature-protocol"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "mochios-tls-client"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "mochios-viewkit-gpu-protocol"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "mochios-virtio-gpu-protocol"
+version = "0.1.0"
