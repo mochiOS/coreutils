@@ -281,7 +281,6 @@ fn write_timer_activity(
     snapshot: &KernelPerformanceSnapshot,
 ) -> io::Result<()> {
     let sleep = snapshot.timer_activity.sleep_queue;
-    let futex = snapshot.timer_activity.futex_timeout_queue;
     writeln!(output, "  \"timer\": {{")?;
     write_latency(
         output,
@@ -296,29 +295,7 @@ fn write_timer_activity(
         "    \"sleep_queue_skipped_checks\": {},",
         sleep.skipped_checks
     )?;
-    writeln!(output, "    \"sleep_queue_wakeups\": {},", sleep.wakeups)?;
-    write_latency(
-        output,
-        "futex_timeout_housekeeping",
-        futex.housekeeping,
-        snapshot.tsc_frequency_khz,
-        true,
-    )?;
-    writeln!(
-        output,
-        "    \"futex_timeout_full_scans\": {},",
-        futex.full_scans
-    )?;
-    writeln!(
-        output,
-        "    \"futex_timeout_skipped_checks\": {},",
-        futex.skipped_checks
-    )?;
-    writeln!(
-        output,
-        "    \"futex_timeout_wakeups\": {}",
-        futex.wakeups
-    )?;
+    writeln!(output, "    \"sleep_queue_wakeups\": {}", sleep.wakeups)?;
     write!(output, "  }}")
 }
 
@@ -678,7 +655,6 @@ mod tests {
         assert!(output.contains("\"temporary_buffer_allocations\""));
         assert!(output.contains("\"path_clone_bytes\""));
         assert!(output.contains("\"sleep_queue_housekeeping\""));
-        assert!(output.contains("\"futex_timeout_full_scans\""));
         assert!(output.contains("\"contiguous_unavailable\""));
         assert!(output.contains("\"mnu_entry\""));
     }
