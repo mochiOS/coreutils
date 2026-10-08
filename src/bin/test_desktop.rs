@@ -1,6 +1,7 @@
 use std::io;
 use std::io::Write;
 
+use mochi_user_platform as platform;
 use mochi_user_syscall as syscall;
 use mochios_capability_protocol::{
     CAPABILITY_PROMPT_OPCODE, CapabilityClass, CapabilityDecision, CapabilityRequest,
@@ -72,23 +73,10 @@ fn request_window_overlay_capability() -> io::Result<()> {
         return Err(errno_io(libc::EINVAL as u64));
     }
     eprintln!("test_desktop: requesting pid");
-    let process_id = match syscall::call0(syscall::SyscallNumber::GetPid) {
-        Ok(pid) if pid != 0 => {
-            eprintln!("test_desktop: pid={pid}");
-            pid
-        }
-        Ok(_) | Err(_) => {
-            let tid = match syscall::call0(syscall::SyscallNumber::GetTid) {
-                Ok(tid) => tid,
-                Err(error) => return Err(errno_io(error.errno().unwrap_or(libc::EIO as u64))),
-            };
-            if tid == 0 {
-                return Err(errno_io(libc::EIO as u64));
-            }
-            eprintln!("test_desktop: pid fallback tid={tid}");
-            tid
-        }
-    };
+    let process_id = platform::process::current_security_context()
+        .map_err(|error| errno_io(error.errno().unwrap_or(libc::EIO as u64)))?
+        .process_id;
+    eprintln!("test_desktop: pid={process_id}");
     let mut request = CapabilityRequest {
         opcode: CAPABILITY_PROMPT_OPCODE,
         process_id,
