@@ -1,8 +1,6 @@
-use std::ffi::CString;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Seek, SeekFrom, Write};
-
-use mochi_user_syscall::{self as syscall, SyscallNumber};
+use std::os::fd::AsRawFd;
 
 const DATA_PATH: &str = "/tmp/ext2-write-data.bin";
 const INDIRECT_PATH: &str = "/tmp/ext2-write-indirect.bin";
@@ -39,23 +37,15 @@ fn expect_errno(result: io::Result<()>, errno: i32, operation: &str) -> io::Resu
     }
 }
 
-fn syscall_error(result: syscall::SysResult<u64>, errno: u64, operation: &str) -> io::Result<()> {
-    match result {
-        Err(error) if error.errno() == Some(errno) => Ok(()),
-        Err(error) => Err(io::Error::other(format!(
-            "{operation}: expected errno {errno}, got {}",
-            error.raw()
-        ))),
-        Ok(value) => Err(io::Error::other(format!(
-            "{operation}: unexpectedly succeeded with {value}"
-        ))),
+fn write_byte(fd: libc::c_int) -> io::Result<()> {
+    let byte = b'x';
+    // Use the POSIX layer's process-local descriptor, not a kernel FD syscall.
+    let written = unsafe { libc::write(fd, (&byte as *const u8).cast(), 1) };
+    if written < 0 {
+        Err(io::Error::last_os_error())
+    } else {
+        require(written == 1, "write returned a short count")
     }
-}
-
-fn syscall_value(result: syscall::SysResult<u64>, operation: &str) -> io::Result<u64> {
-    result.map_err(|error| {
-        io::Error::other(format!("{operation}: syscall failed with {}", error.raw()))
-    })
 }
 
 fn verify_create_and_overwrite() -> io::Result<()> {
@@ -99,42 +89,12 @@ fn verify_create_and_overwrite() -> io::Result<()> {
 
 fn verify_fd_errors() -> io::Result<()> {
     println!("selftest-ext2-write: fd errors");
-    let path = CString::new(DATA_PATH).map_err(io::Error::other)?;
-    let fd = syscall_value(
-        syscall::call4(
-            SyscallNumber::FileOpenAt,
-            (-100i64) as u64,
-            path.as_ptr() as u64,
-            0,
-            0,
-        ),
-        "open read-only fd",
-    )?;
-    let byte = b'x';
-    syscall_error(
-        syscall::call3(SyscallNumber::FileWrite, fd, (&byte as *const u8) as u64, 1),
-        13,
-        "read-only fd write",
-    )?;
-    syscall_value(
-        syscall::call1(SyscallNumber::FileClose, fd),
-        "close read-only fd",
-    )?;
-    syscall_error(
-        syscall::call3(SyscallNumber::FileWrite, fd, (&byte as *const u8) as u64, 1),
-        9,
-        "closed fd write",
-    )?;
-    syscall_error(
-        syscall::call3(
-            SyscallNumber::FileWrite,
-            u64::MAX,
-            (&byte as *const u8) as u64,
-            1,
-        ),
-        9,
-        "invalid fd write",
-    )
+    let file = File::open(DATA_PATH)?;
+    let fd = file.as_raw_fd();
+    expect_errno(write_byte(fd), libc::EBADF, "read-only fd write")?;
+    drop(file);
+    expect_errno(write_byte(fd), libc::EBADF, "closed fd write")?;
+    expect_errno(write_byte(-1), libc::EBADF, "invalid fd write")
 }
 
 fn verify_hole_and_truncate() -> io::Result<()> {
