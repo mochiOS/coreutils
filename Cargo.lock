@@ -58,13 +58,55 @@ source = "git+https://github.com/mochiOS/syscalls#38b10ca1d8b95d8ad638e24a2f83ad
 [[package]]
 name = "mochios-user-database"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/syscalls#38b10ca1d8b95d8ad638e24a2f83adae6aa17034"
 
 [[package]]
 name = "mochios-user-protocol"
 version = "0.1.0"
-source = "git+https://github.com/mochiOS/syscalls#38b10ca1d8b95d8ad638e24a2f83adae6aa17034"
 
 [[package]]
 name = "mochios-workspace-protocol"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "viewkit"
+version = "2.0.0"
+
+[[patch.unused]]
+name = "mochios-mdriver-protocol"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "rustc-std-workspace-alloc"
+version = "1.99.0"
+
+[[patch.unused]]
+name = "rustc-std-workspace-std"
+version = "1.99.0"
+
+[[patch.unused]]
+name = "viewkit"
+version = "2.0.0"
+
+[[patch.unused]]
+name = "mochios-linux-gui-protocol"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "mochios-linux-portal-protocol"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "mochios-signature-protocol"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "mochios-tls-client"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "mochios-viewkit-gpu-protocol"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "mochios-virtio-gpu-protocol"
 version = "0.1.0"

@@ -73,7 +73,7 @@ fn request_window_overlay_capability() -> io::Result<()> {
         return Err(errno_io(libc::EINVAL as u64));
     }
     eprintln!("test_desktop: requesting pid");
-    let process_id = platform::process::current_security_context()
+    let process_id = platform::process::current_execution_identity()
         .map_err(|error| errno_io(error.errno().unwrap_or(libc::EIO as u64)))?
         .process_id;
     eprintln!("test_desktop: pid={process_id}");
