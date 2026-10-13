@@ -3,6 +3,9 @@ use std::io::Write;
 
 use mochi_user_platform as platform;
 use mochi_user_syscall as syscall;
+#[path = "../gui_buffer.rs"]
+mod gui_buffer;
+use gui_buffer::GuiBuffer;
 use mochios_capability_protocol::{
     CAPABILITY_PROMPT_OPCODE, CapabilityClass, CapabilityDecision, CapabilityRequest,
     ExecutableIdentity, MAX_CAPABILITY_NAME_LEN, MAX_REASON_LEN, ResourceDescriptor,
@@ -20,7 +23,6 @@ const OP_DECOR_BEGIN_MOVE: u32 = 105;
 const DECOR_EVENT_WINDOW: u32 = 0x5749_4e44;
 const EVENT_POINTER_BUTTON: u32 = 5;
 const PIXEL_FORMAT_XRGB8888: u32 = 1;
-const PAGE_SIZE: usize = 4096;
 const MAX_WINDOW_DIMENSION: u32 = 4096;
 const TITLE_BAR_HEIGHT: usize = 28;
 
@@ -285,30 +287,6 @@ fn ipc_wait_raw(buf_ptr: *mut u8, buf_len: usize, endpoint: u64) -> io::Result<u
     Ok((msg & 0xffff_ffff) as usize)
 }
 
-fn alloc_shared_page_count(page_count: usize) -> io::Result<u64> {
-    let virt = syscall_io(syscall::call4(
-        syscall::SyscallNumber::AllocSharedPages,
-        page_count as u64,
-        0,
-        0,
-        0,
-    ))?;
-    if virt == 0 || (virt & (PAGE_SIZE as u64 - 1)) != 0 {
-        return Err(errno_io(libc::EIO as u64));
-    }
-    Ok(virt)
-}
-
-fn send_pages(dest: u64, page_count: usize, local_base: u64) -> io::Result<()> {
-    syscall_io(syscall::call4(
-        syscall::SyscallNumber::IpcSendPages,
-        dest,
-        0,
-        page_count as u64,
-        local_base,
-    ))?;
-    Ok(())
-}
 
 unsafe fn zero_raw(ptr: *mut u8, len: usize) {
     core::ptr::write_bytes(ptr, 0, len);
@@ -425,28 +403,16 @@ fn create_decoration(compositor: u64, event_endpoint: u64, window: WindowInfo) -
 }
 
 fn attach_buffer(compositor: u64, token: u64, width: usize, height: usize) -> io::Result<()> {
-    let byte_len = width
-        .checked_mul(height)
-        .and_then(|pixels| pixels.checked_mul(4))
-        .ok_or_else(|| errno_io(libc::EINVAL as u64))?;
-    let page_count = byte_len
-        .checked_add(PAGE_SIZE - 1)
-        .map(|len| len / PAGE_SIZE)
-        .ok_or_else(|| errno_io(libc::EINVAL as u64))?;
-    let virt = alloc_shared_page_count(page_count)?;
-    let pixels = unsafe { std::slice::from_raw_parts_mut(virt as *mut u32, width * height) };
-    for y in 0..height {
-        for x in 0..width {
-            let button = x + 56 >= width && y >= 4 && y < 22;
-            pixels[y * width + x] = if button {
-                0xffb0_3030
-            } else if y == 0 || y + 1 == height {
-                0xffe0_e0e0
-            } else {
-                0xff38_4a62
-            };
+    let buffer = GuiBuffer::new(width, height, |x, y| {
+        let button = x + 56 >= width && y >= 4 && y < 22;
+        if button {
+            0xffb0_3030
+        } else if y == 0 || y + 1 == height {
+            0xffe0_e0e0
+        } else {
+            0xff38_4a62
         }
-    }
+    })?;
     let request = core::ptr::addr_of_mut!(ATTACH_BUFFER_REQ).cast::<u8>();
     let reply = core::ptr::addr_of_mut!(IPC_REPLY).cast::<u8>();
     unsafe {
@@ -461,7 +427,7 @@ fn attach_buffer(compositor: u64, token: u64, width: usize, height: usize) -> io
     }
     let len = ipc_call_raw(compositor, request, 28, reply, 16)?;
     status_from_raw(reply, len)?;
-    send_pages(compositor, page_count, virt)
+    buffer.offer(compositor)
 }
 
 fn simple_token_request(compositor: u64, opcode: u32, token: u64) -> io::Result<()> {
