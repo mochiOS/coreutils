@@ -168,19 +168,7 @@ fn request_ok(agent: u64, command: KnownCommand, arguments: Vec<Argument>) -> io
 }
 
 fn call_with_wait(destination: u64, request: &[u8], reply: &mut [u8]) -> io::Result<u64> {
-    match platform::ipc::call(destination, request, reply) {
-        Ok(message) => Ok(message),
-        Err(error) if error.raw() == mochi_user_syscall::EAGAIN as i64 => loop {
-            match platform::ipc::try_wait(reply) {
-                Ok(message) => break Ok(message),
-                Err(error) if error.raw() == mochi_user_syscall::EAGAIN as i64 => {
-                    platform::thread::yield_now();
-                }
-                Err(error) => break Err(syscall_error(error)),
-            }
-        },
-        Err(error) => Err(syscall_error(error)),
-    }
+    platform::ipc::call(destination, request, reply).map_err(syscall_error)
 }
 
 fn find_agent() -> io::Result<u64> {
