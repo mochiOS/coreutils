@@ -12,9 +12,9 @@ requires = [
     "fs.read.all",
     "fs.write.tmp",
     "process.spawn",
+    "system.random.read",
     "ipc.client",
     "ipc.server",
-    "net.connect",
 ]
 
 [[binary]]

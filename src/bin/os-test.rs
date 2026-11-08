@@ -1,5 +1,5 @@
 //! The KVM quality suite runs through the same launch and capability policy as
-//! any other installed command. Its report uses an ordinary outbound socket.
+//! any other installed command. Reports use the ordinary diagnostic console.
 #[cfg(not(target_os = "mochios"))]
 fn main() {
     eprintln!("os-test requires mochiOS; use mmake host-test on the host");
@@ -12,23 +12,21 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let result = match args.as_slice() {
         [flag, id] if flag == "--case" => run_case(native::CASES, id),
-        [run_id, port] => (|| {
-            let port: u16 = port
-                .parse()
-                .map_err(|_| "invalid host report port".to_string())?;
-            let stream =
-                std::net::TcpStream::connect(("10.0.2.2", port)).map_err(|e| e.to_string())?;
-            let mut reporter = Reporter::new(stream, run_id).map_err(|e| e.to_string())?;
-            run_suite(native::CASES, &mut reporter)
+        [run_id] => (|| {
+            let mut reporter = Reporter::new(native::ReportWriter::default(), run_id)
+                .map_err(|e| e.to_string())?;
+            let status = run_suite(native::CASES, &mut reporter)
                 .map(|passed| if passed { 0 } else { 1 })
-                .map_err(|e| e.to_string())
+                .map_err(|e| e.to_string())?;
+            native::finish_report(run_id, status).map_err(|e| e.to_string())?;
+            Ok::<_, String>(status)
         })()
         .unwrap_or_else(|e| {
             eprintln!("os-test: {e}");
             1
         }),
         _ => {
-            eprintln!("usage: os-test RUN_ID HOST_PORT");
+            eprintln!("usage: os-test RUN_ID");
             2
         }
     };
@@ -41,10 +39,38 @@ mod native {
     use mochios_test_support::{Case, TestResult, require};
     use std::{
         fs,
-        io::{Read, Seek, SeekFrom, Write},
+        io::{self, Read, Seek, SeekFrom, Write},
         process::Command,
         thread,
     };
+
+    /// Flush one complete framed record in a single diagnostic write. Other
+    /// process logs cannot split it between a JSON field and its newline.
+    #[derive(Default)]
+    pub struct ReportWriter(Vec<u8>);
+    impl Write for ReportWriter {
+        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+            if self.0.len().saturating_add(bytes.len()) > 65536 {
+                return Err(io::Error::other("test report exceeded its frame limit"));
+            }
+            self.0.extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> io::Result<()> {
+            if self.0.is_empty() {
+                return Ok(());
+            }
+            let mut framed = b"\nMOCHIOS_TEST_JSON ".to_vec();
+            framed.extend_from_slice(&self.0);
+            p::io::stdout(&framed).map_err(|e| io::Error::other(format!("{e:?}")))?;
+            self.0.clear();
+            Ok(())
+        }
+    }
+    pub fn finish_report(run_id: &str, status: i32) -> io::Result<()> {
+        p::io::stdout(format!("\nMOCHIOS_TEST_FINISH {run_id} {status}\n").as_bytes())
+            .map_err(|e| io::Error::other(format!("{e:?}")))
+    }
 
     pub const CASES: &[Case] = &[
         Case {
