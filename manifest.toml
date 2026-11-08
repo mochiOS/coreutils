@@ -6,6 +6,18 @@ version = "0.1.0"
 vendor = "mochiOS Project"
 
 [[binary]]
+path = "/bin/os-test"
+kind = "application"
+requires = [
+    "fs.read.all",
+    "fs.write.tmp",
+    "process.spawn",
+    "ipc.client",
+    "ipc.server",
+    "net.connect",
+]
+
+[[binary]]
 path = "/bin/echo"
 capability_profile = "coreutils.echo"
 kind = "application"
