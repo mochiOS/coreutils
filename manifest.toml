@@ -110,6 +110,7 @@ path = "/bin/mpk"
 capability_profile = "coreutils.mpk"
 kind = "application"
 requires = [
+    "fs.read.all",
     "ipc.client",
     "package.install",
     "package.remove",

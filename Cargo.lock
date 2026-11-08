@@ -47,6 +47,8 @@ dependencies = [
  "mochios-capability-protocol",
  "mochios-elf-signature",
  "mochios-net-device-protocol",
+ "mochios-package-client",
+ "mochios-package-protocol",
  "mochios-posix-client",
  "mochios-posix-protocol",
  "mochios-test-support",
@@ -213,10 +215,27 @@ name = "mochios-net-device-protocol"
 version = "0.1.0"
 
 [[package]]
+name = "mochios-package-client"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "mochi-user-platform",
+ "mochios-package-protocol",
+ "mochios-posix-protocol",
+]
+
+[[package]]
 name = "mochios-package-manifest"
 version = "0.1.0"
 dependencies = [
  "toml",
+]
+
+[[package]]
+name = "mochios-package-protocol"
+version = "0.1.0"
+dependencies = [
+ "mnu-abi",
 ]
 
 [[package]]
