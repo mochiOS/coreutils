@@ -194,3 +194,8 @@ requires = [
     "fs.read.all",
     "fs.write.all",
 ]
+
+[[binary]]
+path = "/bin/sudo"
+kind = "application"
+requires = ["ipc.client", "process.spawn", "fs.read.all"]
