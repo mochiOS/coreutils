@@ -269,8 +269,10 @@ mod native {
         )
     }
     fn process() -> TestResult {
-        for (path, expected) in [("/bin/true", 0), ("/bin/false", 1)] {
-            let status = Command::new(path).status().map_err(error)?;
+        for (path, expected) in [("/system/bin/true", 0), ("/system/bin/false", 1)] {
+            let status = Command::new(path)
+                .status()
+                .map_err(|e| format!("{path}: {e}"))?;
             require(
                 status.code() == Some(expected),
                 &format!("wrong exit status from {path}: {status}"),
