@@ -37,12 +37,10 @@ kind = "application"
 
 [[binary]]
 path = "/bin/true"
-capability_profile = "coreutils.true"
 kind = "application"
 
 [[binary]]
 path = "/bin/false"
-capability_profile = "coreutils.false"
 kind = "application"
 
 [[binary]]
