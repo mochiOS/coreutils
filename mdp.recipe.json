@@ -1,0 +1,210 @@
+{
+  "format": 1,
+  "steps": [
+    "$(MOCHIOS_CARGO) --manifest-path $(PROJECT)/Cargo.toml --bins"
+  ],
+  "package": {
+    "name": "coreutils",
+    "version": "0.1.0",
+    "target": "x86_64-mochios",
+    "abi": "mochios-1"
+  },
+  "artifact": "out/mdp/coreutils.tar.mdp",
+  "exports": [
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/sudo",
+      "area": "system",
+      "destination": "bin/sudo",
+      "mode": 493,
+      "when": {}
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/echo",
+      "area": "system",
+      "destination": "bin/echo",
+      "mode": 493,
+      "when": {}
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/ls",
+      "area": "system",
+      "destination": "bin/ls",
+      "mode": 493,
+      "when": {}
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/pwd",
+      "area": "system",
+      "destination": "bin/pwd",
+      "mode": 493,
+      "when": {}
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/true",
+      "area": "system",
+      "destination": "bin/true",
+      "mode": 493,
+      "when": {}
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/false",
+      "area": "system",
+      "destination": "bin/false",
+      "mode": 493,
+      "when": {}
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/cat",
+      "area": "system",
+      "destination": "bin/cat",
+      "mode": 493,
+      "when": {}
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/touch",
+      "area": "system",
+      "destination": "bin/touch",
+      "mode": 493,
+      "when": {}
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/rm",
+      "area": "system",
+      "destination": "bin/rm",
+      "mode": 493,
+      "when": {}
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/id",
+      "area": "system",
+      "destination": "bin/id",
+      "mode": 493,
+      "when": {}
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/useradd",
+      "area": "system",
+      "destination": "bin/useradd",
+      "mode": 493,
+      "when": {}
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/userdel",
+      "area": "system",
+      "destination": "bin/userdel",
+      "mode": 493,
+      "when": {}
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/userlist",
+      "area": "system",
+      "destination": "bin/userlist",
+      "mode": 493,
+      "when": {}
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/mpk",
+      "area": "system",
+      "destination": "bin/mpk",
+      "mode": 493,
+      "when": {}
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/net",
+      "area": "system",
+      "destination": "bin/net",
+      "mode": 493,
+      "when": {}
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/gcc",
+      "area": "system",
+      "destination": "bin/gcc",
+      "mode": 493,
+      "when": {}
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/os-test",
+      "area": "system",
+      "destination": "bin/os-test",
+      "mode": 493,
+      "when": {}
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/test_gui",
+      "area": "system",
+      "destination": "bin/test_gui",
+      "mode": 493,
+      "when": {}
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/test_desktop",
+      "area": "system",
+      "destination": "bin/test_desktop",
+      "mode": 493,
+      "when": {}
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/mperf",
+      "area": "system",
+      "destination": "bin/mperf",
+      "mode": 493,
+      "when": {
+        "KERNEL_PERFORMANCE_INSTRUMENTATION": "y"
+      }
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/selftest-capability",
+      "area": "system",
+      "destination": "bin/selftest-capability",
+      "mode": 493,
+      "when": {
+        "USER_BUILD_SELFTESTS": "y"
+      }
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/selftest-process",
+      "area": "system",
+      "destination": "bin/selftest-process",
+      "mode": 493,
+      "when": {
+        "USER_BUILD_SELFTESTS": "y"
+      }
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/selftest-ext2-write",
+      "area": "system",
+      "destination": "bin/selftest-ext2-write",
+      "mode": 493,
+      "when": {
+        "USER_BUILD_SELFTESTS": "y"
+      }
+    },
+    {
+      "source": "$(RUST_TARGET_DIR)/x86_64-unknown-mochios/release/selftest-system-layout",
+      "area": "system",
+      "destination": "bin/selftest-system-layout",
+      "mode": 493,
+      "when": {
+        "USER_BUILD_SELFTESTS": "y"
+      }
+    },
+    {
+      "source": "manifest.toml",
+      "area": "manifests",
+      "destination": "coreutils.toml"
+    }
+  ],
+  "metadata": {
+    "builtins": [
+      {
+        "manifest": "coreutils.toml",
+        "directory": "coreutils",
+        "maps": [
+          "/bin=/system/bin"
+        ],
+        "coreutils": true
+      }
+    ]
+  }
+}
