@@ -6,8 +6,8 @@ edition = "2024"
 [workspace]
 
 [dependencies]
-mochios-package-client = { path = "../../user/crates/package-client" }
-mochios-package-protocol = { path = "../../user/crates/package-protocol" }
+mochios-package-client = { git = "https://github.com/mochiOS/syscalls" }
+mochios-package-protocol = { git = "https://github.com/mochiOS/syscalls" }
 libc = { git = "https://github.com/mochiOS/libc", package = "libc" }
 mboot-protocol = { git = "https://github.com/mochiOS/mBoot", rev = "54d223a845c0b97a9c5d6fc5c2908c04ffec1f68", package = "mboot-protocol" }
 mnu-abi = { git = "https://github.com/mochiOS/mnu", package = "mnu-abi" }
@@ -19,8 +19,8 @@ mochios-user-database = { git = "https://github.com/mochiOS/syscalls", package =
 mochios-user-protocol = { git = "https://github.com/mochiOS/syscalls", package = "mochios-user-protocol" }
 mochios-posix-client = { git = "https://github.com/mochiOS/syscalls", package = "mochios-posix-client", default-features = false, features = ["syscall-endpoint"] }
 mochios-posix-protocol = { git = "https://github.com/mochiOS/syscalls", package = "mochios-posix-protocol" }
-mochios-test-support = { path = "../../user/crates/test-support" }
-mochios-elf-signature = { path = "../../user/crates/elf-signature" }
+mochios-test-support = { git = "https://github.com/mochiOS/syscalls" }
+mochios-elf-signature = { git = "https://github.com/mochiOS/syscalls" }
 
 [lib]
 path = "src/lib.rs"
